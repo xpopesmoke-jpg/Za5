@@ -12,8 +12,12 @@ _Avoid_: Family, team, group
 A person who belongs to a Household and can claim and complete Chores; a person belongs to one Household.
 _Avoid_: User (when talking about the household), participant
 
+**Former member**:
+Someone who has left or been removed from a Household; their completed history stays and their Claims return to the pool.
+_Avoid_: Deleted user, ex-member
+
 **Owner**:
-The Member who created the Household; only the Owner edits the Home map and invites Members.
+The Member who runs the Household: only the Owner edits the Home map and invites or removes Members. If the Owner leaves, the longest-standing Member becomes Owner.
 _Avoid_: Admin, parent
 
 ## Home
@@ -33,6 +37,10 @@ _Avoid_: Level, storey
 **Room**:
 A named area of the home on the Home map, such as Kitchen or Bathroom, with a type and an outline.
 _Avoid_: Space, area, zone
+
+**Whole home**:
+The place for Chores that belong to no single Room, such as watering all the plants or paying bills.
+_Avoid_: General, misc, house
 
 **Fixture**:
 A fixed thing in a Room that Chores attach to, such as a shower, oven or toilet.
@@ -59,6 +67,14 @@ _Avoid_: Assign (assigning is done to someone, claiming is done by them)
 **Za5**:
 Postponing an Occurrence to later today or tomorrow, named after the app; it never counts against the Fairness balance.
 _Avoid_: Snooze, skip, defer
+
+**Skip**:
+Dropping one Occurrence that isn't needed this time, without credit; the next Occurrence is scheduled as normal.
+_Avoid_: Done (Skip is not completion), dismiss
+
+**Away**:
+A Household-wide pause, for example during a holiday, in which no Occurrence becomes overdue.
+_Avoid_: Vacation mode, pause
 
 **Effort**:
 The estimated minutes a Chore takes; the unit of the Fairness balance.
