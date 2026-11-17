@@ -21,7 +21,7 @@ const hr: Shape<typeof en> = {
   namePlaceholder: "Naš stan",
   create: "Nastavi",
   creating: "Spremam…",
-  welcome: (name: string) => `Dobro došli u ${name}`,
+  welcome: (name: string) => `Tvoj dom: ${name}`,
   owner: "Ti si vlasnik ovog doma.",
   member: "Ti si član ovog doma.",
   emptyBody: "Ovdje će se pojaviti karta doma i današnji poslovi.",

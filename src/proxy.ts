@@ -9,9 +9,9 @@ const remember = (res: NextResponse, lang: Lang) =>
 const isDocument = (r: NextRequest) => r.method === "GET" && !r.headers.get("rsc") && !r.headers.get("next-action") && !r.headers.get("next-router-state-tree");
 
 /**
- * Serves every screen in the person's language without showing it in the address: "/food" is rendered from
- * "/hr/food" or "/en/food". New visitors get their phone's language, remembered in a cookie. An address that already
- * has a language in it ("/hr/food") goes to the plain address in that language.
+ * Serves every screen in the person's language without showing it in the address: "/today" is rendered from
+ * "/hr/today" or "/en/today". New visitors get their phone's language, remembered in a cookie. An address that already
+ * has a language in it ("/hr/today") goes to the plain address in that language.
  */
 export default function proxy(request: NextRequest) {
   const saved = request.cookies.get(LANG_COOKIE)?.value;

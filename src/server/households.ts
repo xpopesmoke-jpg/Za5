@@ -1,11 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { households, members } from "@/db/schema";
+import { households, memberRole, members } from "@/db/schema";
+import { HOME_NAME_MAX } from "@/domain/limits";
 import { ValidationError } from "./errors";
 
-export const HOME_NAME_MAX = 60;
-
-export type MyHousehold = { id: string; name: string; role: "owner" | "member" };
+export type MyHousehold = { id: string; name: string; role: (typeof memberRole.enumValues)[number] };
 
 /** Names a new home: creates the Household with this person as its Owner. */
 export async function createHousehold(db: Db, userId: string, typedName: string): Promise<MyHousehold> {
@@ -13,11 +12,17 @@ export async function createHousehold(db: Db, userId: string, typedName: string)
   if (!name) throw new ValidationError("Give your home a name.");
   if (name.length > HOME_NAME_MAX) throw new ValidationError(`Keep the name under ${HOME_NAME_MAX} characters.`);
   if (await getMyHousehold(db, userId)) throw new ValidationError("You already belong to a home.");
-  return db.transaction(async (tx) => {
-    const [household] = await tx.insert(households).values({ name }).returning();
-    await tx.insert(members).values({ householdId: household.id, userId, role: "owner" });
-    return { id: household.id, name: household.name, role: "owner" as const };
-  });
+  try {
+    return await db.transaction(async (tx) => {
+      const [household] = await tx.insert(households).values({ name }).returning();
+      await tx.insert(members).values({ householdId: household.id, userId, role: "owner" });
+      return { id: household.id, name: household.name, role: "owner" as const };
+    });
+  } catch (err) {
+    // Two submits at once both pass the check above; the one-current-household index stops the second.
+    if (isUniqueViolation(err)) throw new ValidationError("You already belong to a home.");
+    throw err;
+  }
 }
 
 /** The Household this person currently belongs to, or null if they have none yet. */
@@ -28,4 +33,11 @@ export async function getMyHousehold(db: Db, userId: string): Promise<MyHousehol
     .innerJoin(households, eq(households.id, members.householdId))
     .where(and(eq(members.userId, userId), isNull(members.leftAt)));
   return row ?? null;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
+    if (e.code === "23505") return true;
+  }
+  return false;
 }

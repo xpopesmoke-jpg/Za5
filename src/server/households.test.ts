@@ -42,4 +42,12 @@ describe("naming your home", () => {
     await expect(createHousehold(db, pope, "x".repeat(61))).rejects.toThrow(ValidationError);
     expect(await getMyHousehold(db, pope)).toBeNull();
   });
+
+  it("keeps one home when the same person submits twice at once", async () => {
+    const results = await Promise.allSettled([createHousehold(db, pope, "Omiš flat"), createHousehold(db, pope, "Omiš flat")]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const failed = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(failed.reason).toBeInstanceOf(ValidationError);
+  });
 });

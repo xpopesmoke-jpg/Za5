@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "@/db/setup";
 import type { Db } from "@/db/client";
-import { createAuth } from "./auth";
+import { createAuth, isEmailTaken } from "./auth";
 import { createHousehold, getMyHousehold } from "./households";
 
 let db: Db;
@@ -23,5 +23,12 @@ describe("signing up", () => {
 
   it("refuses a password shorter than 8 characters", async () => {
     await expect(auth.api.signUpEmail({ body: { name: "Pope", email: "pope@example.com", password: "short" } })).rejects.toThrow();
+  });
+
+  it("reports an email that already has an account with a stable code", async () => {
+    await auth.api.signUpEmail({ body: { name: "Pope", email: "pope@example.com", password: "correct-horse-1" } });
+
+    const err = await auth.api.signUpEmail({ body: { name: "Pope", email: "pope@example.com", password: "correct-horse-1" } }).catch((e) => e);
+    expect(isEmailTaken(err)).toBe(true);
   });
 });

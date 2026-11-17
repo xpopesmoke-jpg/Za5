@@ -12,5 +12,5 @@ export function I18nProvider({ lang, children }: { lang: Lang; children: ReactNo
 }
 
 export const useLang = () => useContext(LangContext);
-/** The messages for this screen's language: `const t = useT(); t.food.title`. */
+/** The messages for this screen's language: `const t = useT(); t.home.nameTitle`. */
 export const useT = () => DICT[useContext(LangContext)];

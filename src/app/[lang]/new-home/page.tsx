@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
+import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
 import { getMyHousehold } from "@/server/households";
@@ -16,6 +17,7 @@ export default async function NewHomePage({ params }: PageProps<"/[lang]/new-hom
       <h1 className="text-[28px] font-bold tracking-tight">{t.nameTitle}</h1>
       <p className="text-[15px] text-ink-2">{t.nameBody}</p>
       <NameHomeForm />
+      <LanguageSwitch lang={lang} path="/new-home" />
     </main>
   );
 }

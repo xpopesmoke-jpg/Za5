@@ -1,14 +1,12 @@
 /**
- * The app speaks English or Croatian. The choice lives in a cookie (so every screen can be prerendered per language and
- * shown without a flash) and in the account (so notifications, reports and the AI use it too).
+ * The app speaks English or Croatian. The choice lives in a cookie, so every screen is served in it
+ * without a flash.
  */
 export const LANGS = ["en", "hr"] as const;
 export type Lang = (typeof LANGS)[number];
 export const LANG_COOKIE = "lang";
 export const isLang = (v: unknown): v is Lang => v === "en" || v === "hr";
 
-/** For Intl date and number formatting. */
-export const LOCALE: Record<Lang, string> = { en: "en-GB", hr: "hr-HR" };
 
 /** The saved choice, else the phone's language (Croatian if it asks for Croatian first), else English. */
 export function langFromRequest(cookie: string | undefined | null, acceptLanguage: string | null): Lang {

@@ -2,8 +2,10 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { APIError } from "better-auth/api";
 import { getDb } from "@/db/client";
+import { APIError } from "better-auth/api";
+import { PASSWORD_MIN } from "@/domain/limits";
+import { isEmailTaken } from "@/server/auth";
 import { createHousehold } from "@/server/households";
 import { getAuth, getCurrentUser } from "@/server/session";
 import { requestLang } from "@/i18n/server";
@@ -28,7 +30,7 @@ export async function signUp(_prev: ActionResult, form: FormData): Promise<Actio
   const lang = await requestLang();
   const t = DICT[lang].auth.errors;
   const password = String(form.get("password") ?? "");
-  if (password.length < 8) return { error: t.shortPassword };
+  if (password.length < PASSWORD_MIN) return { error: t.shortPassword };
   try {
     const email = text(form, "email");
     await getAuth().api.signUpEmail({
@@ -36,7 +38,7 @@ export async function signUp(_prev: ActionResult, form: FormData): Promise<Actio
       headers: await headers(),
     });
   } catch (err) {
-    if (err instanceof APIError && /exist/i.test(err.message)) return { error: t.emailTaken };
+    if (isEmailTaken(err)) return { error: t.emailTaken };
     return toActionError(err, lang);
   }
   redirect("/new-home");
