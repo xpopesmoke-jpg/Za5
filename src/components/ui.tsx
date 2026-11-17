@@ -5,7 +5,7 @@ export function Button(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className={`min-h-12 rounded-xl bg-accent px-5 text-[16px] font-semibold text-accent-ink disabled:opacity-60 ${className}`}
+      className={`min-h-12 rounded-full border-2 border-edge bg-accent px-6 text-[16px] font-extrabold text-accent-ink disabled:opacity-60 ${className}`}
     />
   );
 }
@@ -16,14 +16,14 @@ export function Field({ label, name, hint, ...rest }: FieldProps) {
   const id = `field-${name}`;
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[14px] font-medium">
+      <label htmlFor={id} className="text-[14px] font-bold">
         {label}
       </label>
       <input
         id={id}
         name={name}
         {...rest}
-        className="min-h-12 rounded-xl border border-line bg-surface px-4 text-[16px] text-ink placeholder:text-ink-2"
+        className="min-h-12 rounded-2xl border-2 border-line bg-surface px-4 text-[16px] text-ink placeholder:text-ink-2"
       />
       {hint && <p className="text-[13px] text-ink-2">{hint}</p>}
     </div>

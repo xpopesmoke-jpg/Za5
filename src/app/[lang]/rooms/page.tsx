@@ -13,8 +13,8 @@ import {
   addFixtureAction, addFloorAction, addRoomAction, removeFixtureAction, removeFloorAction, removeRoomAction, renameFloorAction, renameRoomAction,
 } from "./actions";
 
-const input = "min-h-11 rounded-xl border border-line bg-surface px-3 text-[16px] text-ink";
-const small = "min-h-11 rounded-xl border border-line px-4 text-[14px] font-semibold";
+const input = "min-h-11 rounded-2xl border-2 border-line bg-surface px-3 text-[16px] text-ink";
+const small = "min-h-11 rounded-full border-2 border-line px-4 text-[14px] font-bold";
 function RoomTypeSelect({ value, label, names }: { value: string; label: string; names: Record<string, string> }) {
   return (
     <select name="type" defaultValue={value} aria-label={label} className={`${input} w-36`}>
@@ -23,7 +23,7 @@ function RoomTypeSelect({ value, label, names }: { value: string; label: string;
   );
 }
 
-const primary = "min-h-11 rounded-xl bg-accent px-4 text-[14px] font-semibold text-accent-ink";
+const primary = "min-h-11 rounded-full border-2 border-edge bg-accent px-4 text-[14px] font-extrabold text-accent-ink";
 
 /** The Owner's room editor: Floors, Rooms and Fixtures, built from lists (no Plan needed). */
 export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) {
@@ -35,14 +35,14 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-[24px] font-semibold">{t.editRooms}</h1>
+        <h1 className="text-[28px]">{t.editRooms}</h1>
         <Link href="/" className="text-[15px] font-semibold text-accent">{t.done}</Link>
       </header>
 
       {home.floors.map((floor, i) => (
-        <section key={floor.id} className="flex flex-col gap-3 rounded-2xl border border-line p-4">
+        <section key={floor.id} className="flex flex-col gap-3 rounded-card border-2 border-edge bg-raised p-4">
           <ActionForm action={renameFloorAction.bind(null, floor.id)} className="flex flex-col gap-2">
-            <label htmlFor={`floor-${floor.id}`} className="text-[13px] font-semibold uppercase tracking-wide text-ink-2">{t.floorName}</label>
+            <label htmlFor={`floor-${floor.id}`} className="text-[14px] font-bold text-ink-2">{t.floorName}</label>
             <div className="flex gap-2">
               <input id={`floor-${floor.id}`} name="name" defaultValue={floor.name ?? ""} placeholder={t.floorN(i + 1)} maxLength={FLOOR_NAME_MAX} className={`${input} min-w-0 flex-1`} />
               <button type="submit" className={small}>{t.save}</button>
@@ -51,7 +51,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
 
           <ul className="flex flex-col gap-3">
             {floor.rooms.map((room) => (
-              <li key={room.id} className="flex flex-col gap-3 rounded-xl bg-surface p-3">
+              <li key={room.id} className="flex flex-col gap-3 rounded-2xl border-2 border-line bg-surface p-3">
                 <ActionForm action={renameRoomAction.bind(null, room.id)} className="flex flex-col gap-2">
                   <div className="flex gap-2">
                     <RoomTypeSelect value={room.type} label={t.roomType} names={t.roomTypes} />
@@ -65,7 +65,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
                     {room.fixtures.map((f) => (
                       <li key={f.id}>
                         <ActionForm action={removeFixtureAction.bind(null, f.id)}>
-                          <button type="submit" className="min-h-9 rounded-full border border-line px-3 text-[13px]" aria-label={`${t.remove} ${t.fixtureTypes[f.type]}`}>
+                          <button type="submit" className="min-h-9 rounded-full border-2 border-line px-3 text-[13px]" aria-label={`${t.remove} ${t.fixtureTypes[f.type]}`}>
                             {t.fixtureTypes[f.type]} ✕
                           </button>
                         </ActionForm>
@@ -91,7 +91,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
           </ul>
 
           <ActionForm action={addRoomAction.bind(null, floor.id)} resetOnSuccess className="flex flex-col gap-2 border-t border-line pt-3">
-            <p className="text-[14px] font-semibold">{t.addRoom}</p>
+            <p className="font-display text-[17px] font-extrabold">{t.addRoom}</p>
             <div className="flex gap-2">
               <RoomTypeSelect value="kitchen" label={t.roomType} names={t.roomTypes} />
               <input name="name" placeholder={t.roomName} aria-label={t.roomName} maxLength={ROOM_NAME_MAX} className={`${input} min-w-0 flex-1`} />

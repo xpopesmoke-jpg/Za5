@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/baloo-2";
+import "@fontsource-variable/nunito";
 import "../globals.css";
 import { LANGS } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/client";
@@ -19,8 +21,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f3ee" },
-    { media: "(prefers-color-scheme: dark)", color: "#151816" },
+    { media: "(prefers-color-scheme: light)", color: "#eef3ff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1d1830" },
   ],
 };
 

@@ -16,16 +16,16 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
       <header className="flex items-center justify-between">
-        <p className="text-[22px] font-bold tracking-tight">{t.common.appName}</p>
+        <p className="font-display text-[24px] font-extrabold">{t.common.appName}</p>
         <LanguageSwitch lang={lang} />
       </header>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-[24px] font-semibold">{t.home.welcome(household.name)}</h1>
+          <h1 className="text-[28px]">{t.home.welcome(household.name)}</h1>
           <p className="mt-1 text-[14px] text-ink-2">{household.role === "owner" ? t.home.owner : t.home.member}</p>
         </div>
         {home.canEdit && (
-          <Link href="/rooms" className="shrink-0 text-[14px] font-semibold text-accent">
+          <Link href="/rooms" className="flex min-h-11 shrink-0 items-center rounded-full border-2 border-edge bg-za5 px-4 text-[14px] font-extrabold text-za5-ink">
             {t.rooms.editRooms}
           </Link>
         )}

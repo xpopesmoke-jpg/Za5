@@ -13,7 +13,7 @@ export function AuthShell(props: { lang: Lang; path: string; title: string; prom
         <p className="text-[34px] font-bold tracking-tight">{t.appName}</p>
         <p className="text-[15px] text-ink-2">{t.tagline}</p>
       </header>
-      <h1 className="text-[24px] font-semibold">{props.title}</h1>
+      <h1 className="text-[28px]">{props.title}</h1>
       {props.children}
       <p className="text-[14px] text-ink-2">
         {props.prompt}{" "}

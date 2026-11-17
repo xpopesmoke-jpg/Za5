@@ -1,53 +1,115 @@
 @import "tailwindcss";
 
 /*
- * Placeholder look until a visual direction is picked (ticket #3). Every colour is a token, so the chosen
- * direction only has to change this block.
+ * Za5's look: "Dollhouse", picked in ticket #3. A toy model of your home: candy-coloured rooms, chunky dark
+ * outlines, round buttons, rounded type, and a sunny yellow Za5 button. Every colour is a token here, so
+ * components never hard-code a hex value. Text pairs meet 4.5:1 in both themes.
  */
 :root {
   color-scheme: light;
-  --bg: #f6f3ee;
+  --bg: #eef3ff;
   --surface: #ffffff;
-  --ink: #1f2420;
-  --ink-2: #5d645e;
-  --accent: #2f6f5e;
+  --raised: #f4f6ff;
+  --ink: #2b2140;
+  --ink-2: #5c5470;
+  --line: rgb(43 33 64 / 0.14);
+  /* the chunky outline round cards, chips and the Home map */
+  --edge: #2b2140;
+  /* Done, the main action */
+  --accent: #d63a26;
   --accent-ink: #ffffff;
-  --line: rgb(31 36 32 / 0.12);
-  --danger: #b42318;
+  /* the Za5 button */
+  --za5: #ffd23f;
+  --za5-ink: #2b2140;
+  --danger: #c42a17;
+  /* Home map */
+  --wall-a: #ffe7a8;
+  --wall-b: #ffd6e3;
+  --overdue: #ff8a75;
+  --clean: #bdf0d6;
+  --terrace: #bfe3c6;
+  --room-1: #cfe0ff;
+  --room-2: #fff3c4;
+  --room-3: #e6d7ff;
+  --room-4: #c9f0e4;
+  --room-5: #d5f1fb;
+  --track: #e3e6f5;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #151816;
-    --surface: #1f2420;
-    --ink: #eef1ec;
-    --ink-2: #a7b0a8;
-    --accent: #7cc4ad;
-    --accent-ink: #10221c;
-    --line: rgb(238 241 236 / 0.14);
-    --danger: #ff8a7a;
+    --bg: #1d1830;
+    --surface: #2a2342;
+    --raised: #332b50;
+    --ink: #fbf6ff;
+    --ink-2: #c7bedb;
+    --line: rgb(255 240 250 / 0.16);
+    --edge: #0f0b1a;
+    --accent: #ff7a66;
+    --accent-ink: #2b1010;
+    --za5: #ffd23f;
+    --za5-ink: #2b2140;
+    --danger: #ff9b8a;
+    --wall-a: #7a5d2f;
+    --wall-b: #7a3f58;
+    --overdue: #ff8a75;
+    --clean: #3f8f6c;
+    --terrace: #3c6b4d;
+    --room-1: #3d4f86;
+    --room-2: #6d6232;
+    --room-3: #56417f;
+    --room-4: #2f6b5d;
+    --room-5: #2f6378;
+    --track: #3a3258;
   }
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-edge: var(--edge);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
-  --color-line: var(--line);
+  --color-za5: var(--za5);
+  --color-za5-ink: var(--za5-ink);
   --color-danger: var(--danger);
+  --color-wall-a: var(--wall-a);
+  --color-wall-b: var(--wall-b);
+  --color-overdue: var(--overdue);
+  --color-clean: var(--clean);
+  --color-terrace: var(--terrace);
+  --color-room-1: var(--room-1);
+  --color-room-2: var(--room-2);
+  --color-room-3: var(--room-3);
+  --color-room-4: var(--room-4);
+  --color-room-5: var(--room-5);
+  --color-track: var(--track);
+  /* Baloo 2 for headings and the Za5 button, Nunito for everything else; both self-hosted */
+  --font-display: "Baloo 2 Variable", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Nunito Variable", ui-rounded, system-ui, sans-serif;
+  --radius-card: 24px;
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid #7a6cff;
   outline-offset: 2px;
 }
