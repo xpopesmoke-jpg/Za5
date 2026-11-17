@@ -1,0 +1,148 @@
+import { and, asc, count, eq, max } from "drizzle-orm";
+import type { Db } from "@/db/client";
+import { fixtures, floors, rooms } from "@/db/schema";
+import type { FixtureType, RoomType } from "./home-types";
+import { ROOM_NAME_MAX } from "@/domain/limits";
+import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
+import { getMyHousehold } from "./households";
+
+export type { FixtureType, RoomType };
+
+export type HomeFixture = { id: string; type: FixtureType };
+export type HomeRoom = { id: string; type: RoomType; name: string; fixtures: HomeFixture[] };
+export type HomeFloor = { id: string; name: string | null; rooms: HomeRoom[] };
+export type Home = { householdId: string; canEdit: boolean; floors: HomeFloor[] };
+
+async function householdOf(db: Db, userId: string) {
+  const household = await getMyHousehold(db, userId);
+  if (!household) throw new NotFoundError("Home");
+  return household;
+}
+
+/** The home as its Members see it: Floors in order, each with its Rooms and their Fixtures. */
+export async function getHome(db: Db, userId: string): Promise<Home> {
+  const household = await householdOf(db, userId);
+  const floorRows = await db.select().from(floors).where(eq(floors.householdId, household.id)).orderBy(asc(floors.position));
+  const roomRows = await db.select().from(rooms).where(eq(rooms.householdId, household.id)).orderBy(asc(rooms.position));
+  const fixtureRows = await db.select().from(fixtures).where(eq(fixtures.householdId, household.id)).orderBy(asc(fixtures.position));
+  return {
+    householdId: household.id,
+    canEdit: household.role === "owner",
+    floors: floorRows.map((f) => ({
+      id: f.id,
+      name: f.name,
+      rooms: roomRows
+        .filter((r) => r.floorId === f.id)
+        .map((r) => ({
+          id: r.id,
+          type: r.type,
+          name: r.name,
+          fixtures: fixtureRows.filter((x) => x.roomId === r.id).map((x) => ({ id: x.id, type: x.type })),
+        })),
+    })),
+  };
+}
+
+/** The Owner's Household; anyone else gets NotAllowedError, because only the Owner changes the home. */
+async function ownersHousehold(db: Db, userId: string) {
+  const household = await householdOf(db, userId);
+  if (household.role !== "owner") throw new NotAllowedError("Only the owner can change the home.");
+  return household;
+}
+
+async function floorOf(db: Db, householdId: string, floorId: string) {
+  const [floor] = await db.select().from(floors).where(and(eq(floors.id, floorId), eq(floors.householdId, householdId)));
+  if (!floor) throw new NotFoundError("Floor");
+  return floor;
+}
+
+function roomName(typed: string) {
+  const name = typed.trim();
+  if (!name) throw new ValidationError("Give the room a name.");
+  if (name.length > ROOM_NAME_MAX) throw new ValidationError(`Keep the name under ${ROOM_NAME_MAX} characters.`);
+  return name;
+}
+
+/** Adds a Room at the end of a Floor. */
+export async function addRoom(db: Db, userId: string, floorId: string, input: { type: RoomType; name: string }) {
+  const household = await ownersHousehold(db, userId);
+  const floor = await floorOf(db, household.id, floorId);
+  const name = roomName(input.name);
+  const [{ last }] = await db.select({ last: max(rooms.position) }).from(rooms).where(eq(rooms.floorId, floor.id));
+  const [room] = await db
+    .insert(rooms)
+    .values({ householdId: household.id, floorId: floor.id, type: input.type, name, position: (last ?? -1) + 1 })
+    .returning({ id: rooms.id });
+  return room.id;
+}
+
+async function roomOf(db: Db, householdId: string, roomId: string) {
+  const [room] = await db.select().from(rooms).where(and(eq(rooms.id, roomId), eq(rooms.householdId, householdId)));
+  if (!room) throw new NotFoundError("Room");
+  return room;
+}
+
+/** Renames a Room and sets its type ("Room 3" → "Kids' room"). */
+export async function renameRoom(db: Db, userId: string, roomId: string, input: { type: RoomType; name: string }) {
+  const household = await ownersHousehold(db, userId);
+  const room = await roomOf(db, household.id, roomId);
+  await db.update(rooms).set({ type: input.type, name: roomName(input.name) }).where(eq(rooms.id, room.id));
+}
+
+/** Removes a Room and its Fixtures. */
+export async function removeRoom(db: Db, userId: string, roomId: string) {
+  const household = await ownersHousehold(db, userId);
+  const room = await roomOf(db, household.id, roomId);
+  await db.delete(rooms).where(eq(rooms.id, room.id));
+}
+
+/** Adds a Fixture at the end of a Room's list. */
+export async function addFixture(db: Db, userId: string, roomId: string, type: FixtureType) {
+  const household = await ownersHousehold(db, userId);
+  const room = await roomOf(db, household.id, roomId);
+  const [{ last }] = await db.select({ last: max(fixtures.position) }).from(fixtures).where(eq(fixtures.roomId, room.id));
+  const [fixture] = await db
+    .insert(fixtures)
+    .values({ householdId: household.id, roomId: room.id, type, position: (last ?? -1) + 1 })
+    .returning({ id: fixtures.id });
+  return fixture.id;
+}
+
+/** Removes one Fixture from its Room. */
+export async function removeFixture(db: Db, userId: string, fixtureId: string) {
+  const household = await ownersHousehold(db, userId);
+  const deleted = await db
+    .delete(fixtures)
+    .where(and(eq(fixtures.id, fixtureId), eq(fixtures.householdId, household.id)))
+    .returning({ id: fixtures.id });
+  if (deleted.length === 0) throw new NotFoundError("Fixture");
+}
+
+/** Adds a Floor above the others. It has no name until the Owner gives it one. */
+export async function addFloor(db: Db, userId: string) {
+  const household = await ownersHousehold(db, userId);
+  const [{ last }] = await db.select({ last: max(floors.position) }).from(floors).where(eq(floors.householdId, household.id));
+  const [floor] = await db
+    .insert(floors)
+    .values({ householdId: household.id, position: (last ?? -1) + 1 })
+    .returning({ id: floors.id });
+  return floor.id;
+}
+
+/** Names a Floor ("Upstairs"); a blank name goes back to the numbered default. */
+export async function renameFloor(db: Db, userId: string, floorId: string, typed: string) {
+  const household = await ownersHousehold(db, userId);
+  const floor = await floorOf(db, household.id, floorId);
+  const name = typed.trim();
+  if (name.length > ROOM_NAME_MAX) throw new ValidationError(`Keep the name under ${ROOM_NAME_MAX} characters.`);
+  await db.update(floors).set({ name: name || null }).where(eq(floors.id, floor.id));
+}
+
+/** Removes a Floor with its Rooms. A home always keeps at least one Floor. */
+export async function removeFloor(db: Db, userId: string, floorId: string) {
+  const household = await ownersHousehold(db, userId);
+  const floor = await floorOf(db, household.id, floorId);
+  const [{ n }] = await db.select({ n: count() }).from(floors).where(eq(floors.householdId, household.id));
+  if (n <= 1) throw new ValidationError("A home needs at least one floor.");
+  await db.delete(floors).where(eq(floors.id, floor.id));
+}

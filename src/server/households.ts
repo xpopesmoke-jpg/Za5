@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { households, memberRole, members } from "@/db/schema";
+import { floors, households, memberRole, members } from "@/db/schema";
 import { HOME_NAME_MAX } from "@/domain/limits";
 import { ValidationError } from "./errors";
 
@@ -16,6 +16,8 @@ export async function createHousehold(db: Db, userId: string, typedName: string)
     return await db.transaction(async (tx) => {
       const [household] = await tx.insert(households).values({ name }).returning();
       await tx.insert(members).values({ householdId: household.id, userId, role: "owner" });
+      // A home always has at least one Floor, so Rooms have somewhere to go from the start.
+      await tx.insert(floors).values({ householdId: household.id, position: 0 });
       return { id: household.id, name: household.name, role: "owner" as const };
     });
   } catch (err) {

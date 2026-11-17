@@ -2,8 +2,9 @@ import type { Lang } from "./config";
 import common from "./messages/common";
 import auth from "./messages/auth";
 import home from "./messages/home";
+import rooms from "./messages/rooms";
 
-const areas = { common, auth, home };
+const areas = { common, auth, home, rooms };
 type Areas = typeof areas;
 export type Dict = { [K in keyof Areas]: Areas[K]["en"] };
 

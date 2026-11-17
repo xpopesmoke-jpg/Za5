@@ -8,6 +8,15 @@ const HR_EXACT: Record<string, string> = {
   "Give your home a name.": "Daj svom domu ime.",
   "You already belong to a home.": "Već pripadaš jednom domu.",
   "That didn't work. Try again.": "Nije uspjelo. Pokušaj ponovno.",
+  "Only the owner can change the home.": "Samo vlasnik može mijenjati dom.",
+  "Give the room a name.": "Daj prostoriji ime.",
+  "A home needs at least one floor.": "Dom treba imati barem jednu etažu.",
+  "Home wasn't found.": "Dom nije pronađen.",
+  "Floor wasn't found.": "Etaža nije pronađena.",
+  "Room wasn't found.": "Prostorija nije pronađena.",
+  "Fixture wasn't found.": "Element nije pronađen.",
+  "Pick a room type.": "Odaberi vrstu prostorije.",
+  "Pick a fixture.": "Odaberi element.",
 };
 
 const HR_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [

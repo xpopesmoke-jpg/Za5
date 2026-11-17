@@ -7,3 +7,6 @@ export class NotFoundError extends Error {
 
 /** Input that doesn't make sense. The message is safe to show to the person. */
 export class ValidationError extends Error {}
+
+/** Something this Member may not do, such as a Member changing the home (only the Owner can). */
+export class NotAllowedError extends Error {}
