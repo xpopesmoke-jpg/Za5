@@ -2,3 +2,4 @@
 export const PASSWORD_MIN = 8;
 export const HOME_NAME_MAX = 60;
 export const ROOM_NAME_MAX = 40;
+export const FLOOR_NAME_MAX = 40;

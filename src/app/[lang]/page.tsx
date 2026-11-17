@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getDb } from "@/db/client";
-import { HomePlan } from "@/components/home-plan";
+import { RoomTiles } from "@/components/room-tiles";
 import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
@@ -10,7 +10,7 @@ import { signOut } from "./actions";
 
 export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const lang = langOf((await params).lang);
-  const { me, home: household } = await getCurrentHome();
+  const { me, household } = await getCurrentHome();
   const home = await getHome(getDb(), me.id);
   const t = DICT[lang];
   return (
@@ -30,7 +30,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           </Link>
         )}
       </div>
-      <HomePlan home={home} lang={lang} />
+      <RoomTiles home={home} lang={lang} />
       <form action={signOut}>
         <button type="submit" className="text-[14px] font-medium text-ink-2 underline">
           {t.common.signOut}

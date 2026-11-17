@@ -25,10 +25,10 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   return (await findCurrentUser()) ?? redirect("/sign-in");
 }
 
-/** The signed-in person and their home. Sends them to sign in, or to name their home, as needed. */
-export async function getCurrentHome(): Promise<{ me: CurrentUser; home: MyHousehold }> {
+/** The signed-in person and their Household. Sends them to sign in, or to name their home, as needed. */
+export async function getCurrentHome(): Promise<{ me: CurrentUser; household: MyHousehold }> {
   const me = await getCurrentUser();
-  const home = await getMyHousehold(getDb(), me.id);
-  if (!home) redirect("/new-home");
-  return { me, home };
+  const household = await getMyHousehold(getDb(), me.id);
+  if (!household) redirect("/new-home");
+  return { me, household };
 }

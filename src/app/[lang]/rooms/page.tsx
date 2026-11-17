@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import { ActionForm } from "@/components/action-form";
+import { ConfirmButton } from "@/components/confirm-button";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
 import { getHome } from "@/server/home";
 import { FIXTURE_TYPES, ROOM_TYPES } from "@/server/home-types";
-import { ROOM_NAME_MAX } from "@/domain/limits";
+import { FLOOR_NAME_MAX, ROOM_NAME_MAX } from "@/domain/limits";
 import { getCurrentHome } from "@/server/session";
 import {
   addFixtureAction, addFloorAction, addRoomAction, removeFixtureAction, removeFloorAction, removeRoomAction, renameFloorAction, renameRoomAction,
@@ -14,6 +15,14 @@ import {
 
 const input = "min-h-11 rounded-xl border border-line bg-surface px-3 text-[16px] text-ink";
 const small = "min-h-11 rounded-xl border border-line px-4 text-[14px] font-semibold";
+function RoomTypeSelect({ value, label, names }: { value: string; label: string; names: Record<string, string> }) {
+  return (
+    <select name="type" defaultValue={value} aria-label={label} className={`${input} w-36`}>
+      {ROOM_TYPES.map((ty) => <option key={ty} value={ty}>{names[ty]}</option>)}
+    </select>
+  );
+}
+
 const primary = "min-h-11 rounded-xl bg-accent px-4 text-[14px] font-semibold text-accent-ink";
 
 /** The Owner's room editor: Floors, Rooms and Fixtures, built from lists (no Plan needed). */
@@ -35,7 +44,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
           <ActionForm action={renameFloorAction.bind(null, floor.id)} className="flex flex-col gap-2">
             <label htmlFor={`floor-${floor.id}`} className="text-[13px] font-semibold uppercase tracking-wide text-ink-2">{t.floorName}</label>
             <div className="flex gap-2">
-              <input id={`floor-${floor.id}`} name="name" defaultValue={floor.name ?? ""} placeholder={t.floorN(i + 1)} maxLength={ROOM_NAME_MAX} className={`${input} min-w-0 flex-1`} />
+              <input id={`floor-${floor.id}`} name="name" defaultValue={floor.name ?? ""} placeholder={t.floorN(i + 1)} maxLength={FLOOR_NAME_MAX} className={`${input} min-w-0 flex-1`} />
               <button type="submit" className={small}>{t.save}</button>
             </div>
           </ActionForm>
@@ -45,9 +54,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
               <li key={room.id} className="flex flex-col gap-3 rounded-xl bg-surface p-3">
                 <ActionForm action={renameRoomAction.bind(null, room.id)} className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <select name="type" defaultValue={room.type} aria-label={t.roomType} className={`${input} w-36`}>
-                      {ROOM_TYPES.map((ty) => <option key={ty} value={ty}>{t.roomTypes[ty]}</option>)}
-                    </select>
+                    <RoomTypeSelect value={room.type} label={t.roomType} names={t.roomTypes} />
                     <input name="name" defaultValue={room.name} aria-label={t.roomName} maxLength={ROOM_NAME_MAX} className={`${input} min-w-0 flex-1`} />
                   </div>
                   <button type="submit" className={`${small} self-start`}>{t.save}</button>
@@ -76,19 +83,17 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
                     <button type="submit" className={small}>+</button>
                   </ActionForm>
                   <ActionForm action={removeRoomAction.bind(null, room.id)}>
-                    <button type="submit" className="min-h-11 px-2 text-[14px] font-medium text-danger">{t.remove}</button>
+                    <ConfirmButton label={t.remove} confirmLabel={t.tapAgain} className="min-h-11 px-2 text-[14px] font-medium text-danger" />
                   </ActionForm>
                 </div>
               </li>
             ))}
           </ul>
 
-          <ActionForm action={addRoomAction.bind(null, floor.id)} className="flex flex-col gap-2 border-t border-line pt-3">
+          <ActionForm action={addRoomAction.bind(null, floor.id)} resetOnSuccess className="flex flex-col gap-2 border-t border-line pt-3">
             <p className="text-[14px] font-semibold">{t.addRoom}</p>
             <div className="flex gap-2">
-              <select name="type" defaultValue="kitchen" aria-label={t.roomType} className={`${input} w-36`}>
-                {ROOM_TYPES.map((ty) => <option key={ty} value={ty}>{t.roomTypes[ty]}</option>)}
-              </select>
+              <RoomTypeSelect value="kitchen" label={t.roomType} names={t.roomTypes} />
               <input name="name" placeholder={t.roomName} aria-label={t.roomName} maxLength={ROOM_NAME_MAX} className={`${input} min-w-0 flex-1`} />
             </div>
             <p className="text-[13px] text-ink-2">{t.roomNameHint}</p>
@@ -97,7 +102,7 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
 
           {home.floors.length > 1 && (
             <ActionForm action={removeFloorAction.bind(null, floor.id)} className="flex flex-col gap-1">
-              <button type="submit" className="min-h-11 self-start text-[14px] font-medium text-danger">{t.removeFloor}</button>
+              <ConfirmButton label={t.removeFloor} confirmLabel={t.tapAgain} className="min-h-11 self-start text-[14px] font-medium text-danger" />
               <p className="text-[12px] text-ink-2">{t.removeFloorHint}</p>
             </ActionForm>
           )}

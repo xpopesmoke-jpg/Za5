@@ -1,16 +1,27 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type ReactNode } from "react";
+import type { ActionResult } from "@/app/[lang]/action-result";
 import { FormMessage } from "./ui";
 
-type Result = { error?: string; ok?: boolean } | null;
-
-/** A form for a server action that shows the action's error message under its fields. */
-export function ActionForm({ action, className, children }: { action: (prev: Result, form: FormData) => Promise<Result>; className?: string; children: ReactNode }) {
-  const [state, run] = useActionState(action, null);
+/**
+ * A form for a server action that shows the action's error under its fields. With resetOnSuccess, the fields
+ * clear after it worked (for "add" forms, so the next entry starts empty).
+ */
+export function ActionForm(props: {
+  action: (prev: ActionResult, form: FormData) => Promise<ActionResult>;
+  className?: string;
+  resetOnSuccess?: boolean;
+  children: ReactNode;
+}) {
+  const [state, run] = useActionState(props.action, null);
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (props.resetOnSuccess && state?.ok) form.current?.reset();
+  }, [state, props.resetOnSuccess]);
   return (
-    <form action={run} className={className}>
-      {children}
+    <form ref={form} action={run} className={props.className}>
+      {props.children}
       <FormMessage error={state?.error} />
     </form>
   );

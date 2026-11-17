@@ -2,8 +2,8 @@ import type { Home } from "@/server/home";
 import type { Lang } from "@/i18n/config";
 import { DICT } from "@/i18n/dictionary";
 
-/** A simple 2D view of the home: each Floor with its Rooms as tiles. The 3D Home map replaces it later. */
-export function HomePlan({ home, lang }: { home: Home; lang: Lang }) {
+/** A simple 2D view of the home: each Floor with its Rooms as tiles, until the 3D Home map arrives. */
+export function RoomTiles({ home, lang }: { home: Home; lang: Lang }) {
   const t = DICT[lang].rooms;
   return (
     <div className="flex flex-col gap-5">

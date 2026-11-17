@@ -1,8 +1,8 @@
 import { and, asc, count, eq, max } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { fixtures, floors, rooms } from "@/db/schema";
-import type { FixtureType, RoomType } from "./home-types";
-import { ROOM_NAME_MAX } from "@/domain/limits";
+import { fixtures, floors, households, rooms } from "@/db/schema";
+import { FIXTURE_TYPES, ROOM_TYPES, type FixtureType, type RoomType } from "./home-types";
+import { FLOOR_NAME_MAX, ROOM_NAME_MAX } from "@/domain/limits";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
 import { getMyHousehold } from "./households";
 
@@ -56,22 +56,33 @@ async function floorOf(db: Db, householdId: string, floorId: string) {
   return floor;
 }
 
-function roomName(typed: string) {
+function shortName(typed: string, max: number) {
   const name = typed.trim();
-  if (!name) throw new ValidationError("Give the room a name.");
-  if (name.length > ROOM_NAME_MAX) throw new ValidationError(`Keep the name under ${ROOM_NAME_MAX} characters.`);
+  if (name.length > max) throw new ValidationError(`Keep the name under ${max} characters.`);
   return name;
+}
+
+function roomName(typed: string) {
+  const name = shortName(typed, ROOM_NAME_MAX);
+  if (!name) throw new ValidationError("Give the room a name.");
+  return name;
+}
+
+function checkedRoomType(type: string): RoomType {
+  if (!ROOM_TYPES.includes(type as RoomType)) throw new ValidationError("Pick a room type.");
+  return type as RoomType;
 }
 
 /** Adds a Room at the end of a Floor. */
 export async function addRoom(db: Db, userId: string, floorId: string, input: { type: RoomType; name: string }) {
   const household = await ownersHousehold(db, userId);
   const floor = await floorOf(db, household.id, floorId);
+  const type = checkedRoomType(input.type);
   const name = roomName(input.name);
   const [{ last }] = await db.select({ last: max(rooms.position) }).from(rooms).where(eq(rooms.floorId, floor.id));
   const [room] = await db
     .insert(rooms)
-    .values({ householdId: household.id, floorId: floor.id, type: input.type, name, position: (last ?? -1) + 1 })
+    .values({ householdId: household.id, floorId: floor.id, type, name, position: (last ?? -1) + 1 })
     .returning({ id: rooms.id });
   return room.id;
 }
@@ -86,7 +97,8 @@ async function roomOf(db: Db, householdId: string, roomId: string) {
 export async function renameRoom(db: Db, userId: string, roomId: string, input: { type: RoomType; name: string }) {
   const household = await ownersHousehold(db, userId);
   const room = await roomOf(db, household.id, roomId);
-  await db.update(rooms).set({ type: input.type, name: roomName(input.name) }).where(eq(rooms.id, room.id));
+  const type = checkedRoomType(input.type);
+  await db.update(rooms).set({ type, name: roomName(input.name) }).where(eq(rooms.id, room.id));
 }
 
 /** Removes a Room and its Fixtures. */
@@ -100,6 +112,7 @@ export async function removeRoom(db: Db, userId: string, roomId: string) {
 export async function addFixture(db: Db, userId: string, roomId: string, type: FixtureType) {
   const household = await ownersHousehold(db, userId);
   const room = await roomOf(db, household.id, roomId);
+  if (!FIXTURE_TYPES.includes(type)) throw new ValidationError("Pick a fixture.");
   const [{ last }] = await db.select({ last: max(fixtures.position) }).from(fixtures).where(eq(fixtures.roomId, room.id));
   const [fixture] = await db
     .insert(fixtures)
@@ -133,8 +146,7 @@ export async function addFloor(db: Db, userId: string) {
 export async function renameFloor(db: Db, userId: string, floorId: string, typed: string) {
   const household = await ownersHousehold(db, userId);
   const floor = await floorOf(db, household.id, floorId);
-  const name = typed.trim();
-  if (name.length > ROOM_NAME_MAX) throw new ValidationError(`Keep the name under ${ROOM_NAME_MAX} characters.`);
+  const name = shortName(typed, FLOOR_NAME_MAX);
   await db.update(floors).set({ name: name || null }).where(eq(floors.id, floor.id));
 }
 
@@ -142,7 +154,11 @@ export async function renameFloor(db: Db, userId: string, floorId: string, typed
 export async function removeFloor(db: Db, userId: string, floorId: string) {
   const household = await ownersHousehold(db, userId);
   const floor = await floorOf(db, household.id, floorId);
-  const [{ n }] = await db.select({ n: count() }).from(floors).where(eq(floors.householdId, household.id));
-  if (n <= 1) throw new ValidationError("A home needs at least one floor.");
-  await db.delete(floors).where(eq(floors.id, floor.id));
+  await db.transaction(async (tx) => {
+    // Lock the household so two removals at once can't both see "more than one Floor left".
+    await tx.select({ id: households.id }).from(households).where(eq(households.id, household.id)).for("update");
+    const [{ n }] = await tx.select({ n: count() }).from(floors).where(eq(floors.householdId, household.id));
+    if (n <= 1) throw new ValidationError("A home needs at least one floor.");
+    await tx.delete(floors).where(eq(floors.id, floor.id));
+  });
 }

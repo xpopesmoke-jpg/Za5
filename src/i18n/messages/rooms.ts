@@ -3,7 +3,6 @@ import type { Shape } from "../shape";
 
 /** rooms: the home's Floors, Rooms and Fixtures. English first. */
 const en = {
-  yourHome: "Your home",
   editRooms: "Edit rooms",
   done: "Done",
   floorN: (n: number) => `Floor ${n}`,
@@ -22,6 +21,7 @@ const en = {
   floorName: "Floor name",
   removeFloor: "Remove floor",
   removeFloorHint: "Removes the floor and all its rooms.",
+  tapAgain: "Tap again to remove",
   roomTypes: {
     kitchen: "Kitchen", living: "Living room", dining: "Dining room", bedroom: "Bedroom", kids: "Children's room",
     bathroom: "Bathroom", toilet: "Toilet", hall: "Hall", laundry: "Laundry", office: "Office", storage: "Storage",
@@ -34,7 +34,6 @@ const en = {
 };
 
 const hr: Shape<typeof en> = {
-  yourHome: "Tvoj dom",
   editRooms: "Uredi prostorije",
   done: "Gotovo",
   floorN: (n: number) => `Etaža ${n}`,
@@ -53,6 +52,7 @@ const hr: Shape<typeof en> = {
   floorName: "Ime etaže",
   removeFloor: "Ukloni etažu",
   removeFloorHint: "Uklanja etažu i sve njezine prostorije.",
+  tapAgain: "Dodirni ponovno za uklanjanje",
   roomTypes: {
     kitchen: "Kuhinja", living: "Dnevni boravak", dining: "Blagovaonica", bedroom: "Spavaća soba", kids: "Dječja soba",
     bathroom: "Kupaonica", toilet: "WC", hall: "Hodnik", laundry: "Praonica", office: "Radna soba", storage: "Ostava",

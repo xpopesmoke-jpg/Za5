@@ -5,8 +5,7 @@ import { getDb } from "@/db/client";
 import { DICT } from "@/i18n/dictionary";
 import { requestLang } from "@/i18n/server";
 import { addFixture, addFloor, addRoom, removeFixture, removeFloor, removeRoom, renameFloor, renameRoom } from "@/server/home";
-import { FIXTURE_TYPES, ROOM_TYPES, type FixtureType, type RoomType } from "@/server/home-types";
-import { ValidationError } from "@/server/errors";
+import type { FixtureType, RoomType } from "@/server/home-types";
 import { getCurrentUser } from "@/server/session";
 import { text, toActionError, type ActionResult } from "../action-result";
 
@@ -22,15 +21,12 @@ async function change(run: (userId: string) => Promise<unknown>): Promise<Action
   return { ok: true };
 }
 
-function roomTypeFrom(form: FormData): RoomType {
-  const v = text(form, "type");
-  if (!ROOM_TYPES.includes(v as RoomType)) throw new ValidationError("Pick a room type.");
-  return v as RoomType;
-}
+// The server layer checks both types; a bad value from the form becomes "Pick a room type." / "Pick a fixture."
+const roomTypeFrom = (form: FormData) => text(form, "type") as RoomType;
 
 /** A blank name takes the type's name in the person's language ("Kitchen", "Kuhinja"). */
 async function roomNameFrom(form: FormData, type: RoomType) {
-  return text(form, "name") || DICT[await requestLang()].rooms.roomTypes[type];
+  return text(form, "name") || DICT[await requestLang()].rooms.roomTypes[type] || "";
 }
 
 export async function addRoomAction(floorId: string, _prev: ActionResult, form: FormData) {
@@ -53,9 +49,7 @@ export async function removeRoomAction(roomId: string) {
 
 export async function addFixtureAction(roomId: string, _prev: ActionResult, form: FormData) {
   return change(async (me) => {
-    const v = text(form, "fixture");
-    if (!FIXTURE_TYPES.includes(v as FixtureType)) throw new ValidationError("Pick a fixture.");
-    await addFixture(getDb(), me, roomId, v as FixtureType);
+    await addFixture(getDb(), me, roomId, text(form, "fixture") as FixtureType);
   });
 }
 

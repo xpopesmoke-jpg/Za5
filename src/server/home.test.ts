@@ -128,3 +128,49 @@ describe("Floors", () => {
     await expect(removeFloor(db, pope, ground.id)).rejects.toThrow(ValidationError);
   });
 });
+
+describe("guards on every change", () => {
+  it("refuses every change from a Member and from another household", async () => {
+    const [floor] = (await getHome(db, pope)).floors;
+    const bath = await addRoom(db, pope, floor.id, { type: "bathroom", name: "Bathroom" });
+    const shower = await addFixture(db, pope, bath, "shower");
+    const upstairs = await addFloor(db, pope);
+    const ana = await makeUser(db, "Ana");
+    await addMember(db, (await getMyHousehold(db, pope))!.id, ana);
+    const luka = await makeUser(db, "Luka");
+    await createHousehold(db, luka, "Split house");
+
+    const changes = (who: string) => [
+      () => addRoom(db, who, floor.id, { type: "kitchen", name: "Kitchen" }),
+      () => renameRoom(db, who, bath, { type: "toilet", name: "WC" }),
+      () => removeRoom(db, who, bath),
+      () => addFixture(db, who, bath, "bathtub"),
+      () => removeFixture(db, who, shower),
+      () => renameFloor(db, who, upstairs, "Attic"),
+      () => removeFloor(db, who, upstairs),
+    ];
+    for (const run of changes(ana)) await expect(run()).rejects.toThrow(NotAllowedError);
+    await expect(addFloor(db, ana)).rejects.toThrow(NotAllowedError);
+    for (const run of changes(luka)) await expect(run()).rejects.toThrow(NotFoundError);
+
+    const home = await getHome(db, pope);
+    expect(home.floors).toHaveLength(2);
+    expect(home.floors[0].rooms).toMatchObject([{ name: "Bathroom", fixtures: [{ type: "shower" }] }]);
+  });
+
+  it("refuses a Room type or Floor name that doesn't fit", async () => {
+    const [floor] = (await getHome(db, pope)).floors;
+
+    await expect(addRoom(db, pope, floor.id, { type: "garage" as never, name: "Garage" })).rejects.toThrow(ValidationError);
+    await expect(renameFloor(db, pope, floor.id, "x".repeat(41))).rejects.toThrow(ValidationError);
+  });
+
+  it("keeps one Floor when two removals race", async () => {
+    const upstairs = await addFloor(db, pope);
+    const [ground] = (await getHome(db, pope)).floors;
+
+    await Promise.allSettled([removeFloor(db, pope, ground.id), removeFloor(db, pope, upstairs)]);
+
+    expect((await getHome(db, pope)).floors).toHaveLength(1);
+  });
+});
