@@ -9,8 +9,12 @@ The people who share one home and its chores, such as a couple or a small family
 _Avoid_: Family, team, group
 
 **Member**:
-A person who belongs to a Household and can claim and complete chores.
+A person who belongs to a Household and can claim and complete Chores; a person belongs to one Household.
 _Avoid_: User (when talking about the household), participant
+
+**Owner**:
+The Member who created the Household; only the Owner edits the Home map and invites Members.
+_Avoid_: Admin, parent
 
 ## Home
 
@@ -21,6 +25,10 @@ _Avoid_: Schematic, blueprint, drawing
 **Home map**:
 The household's home as a stylised 3D "dollhouse": rooms with raised walls and no roof, showing where Chores and Supplies are.
 _Avoid_: Floor plan (that is the Plan), 3D model, visualization
+
+**Floor**:
+One level of the home; each page or image of a multi-floor Plan becomes one Floor.
+_Avoid_: Level, storey
 
 **Room**:
 A named area of the home on the Home map, such as Kitchen or Bathroom, with a type and an outline.
@@ -45,11 +53,19 @@ A named bundle of Chores done together, such as "Sunday reset".
 _Avoid_: Checklist, program
 
 **Claim**:
-A Member taking an Occurrence from the open pool as theirs to do.
+A Member taking an Occurrence from the open pool as theirs to do; it lapses at the end of the day the Occurrence was due, and anyone may still complete it.
 _Avoid_: Assign (assigning is done to someone, claiming is done by them)
 
+**Za5**:
+Postponing an Occurrence to later today or tomorrow, named after the app; it never counts against the Fairness balance.
+_Avoid_: Snooze, skip, defer
+
+**Effort**:
+The estimated minutes a Chore takes; the unit of the Fairness balance.
+_Avoid_: Points, score, difficulty
+
 **Fairness balance**:
-How much chore work each Member has completed over a period, weighted by effort.
+Each Member's completed Effort over the last 30 days, credited to whoever actually completed each Occurrence.
 _Avoid_: Score, leaderboard
 
 ## Stock
