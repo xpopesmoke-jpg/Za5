@@ -47,7 +47,7 @@ describe("the Whole home", () => {
 });
 
 describe("suggesting Supplies", () => {
-  it("puts each Supply once, in the first Room it fits, and general ones in the Whole home", () => {
+  it("puts each Supply once, in the first Room it fits, and Whole-home ones in the Whole home", () => {
     const rooms: HomeRoom[] = [{ id: "k", type: "kitchen", fixtures: ["dishwasher"] }, bathroom, { ...bathroom, id: "bath-2" }];
     const placed = Object.fromEntries(suggest(rooms).supplies.map((s) => [s.supply.key, s.roomId]));
 
@@ -106,5 +106,55 @@ describe("the starter library itself", () => {
 
   it("suggests at least three Chores for the Whole home", () => {
     expect(choreKeysFor([], null).length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("matching that stays sensible", () => {
+  it("does not turn a room into a kitchen just because it has a fridge", () => {
+    const keys = choreKeysFor([{ id: "s", type: "storage", fixtures: ["fridge"] }], "s");
+
+    expect(keys).toContain("fridge-clear-out");
+    expect(keys).not.toContain("wash-dishes");
+    expect(keys).not.toContain("take-out-bins");
+  });
+
+  it("does not suggest washing dishes by hand where there is a dishwasher", () => {
+    const keys = choreKeysFor([{ id: "k", type: "kitchen", fixtures: ["dishwasher"] }], "k");
+
+    expect(keys).toEqual(expect.arrayContaining(["run-dishwasher", "empty-dishwasher"]));
+    expect(keys).not.toContain("wash-dishes");
+  });
+
+  it("puts the washing in the bathroom with the machine, but the ironing in the Whole home", () => {
+    const rooms: HomeRoom[] = [{ id: "b", type: "bathroom", fixtures: ["washing_machine"] }];
+
+    expect(choreKeysFor(rooms, "b")).toContain("do-laundry");
+    expect(choreKeysFor(rooms, "b")).not.toContain("ironing");
+    expect(choreKeysFor(rooms, null)).toContain("ironing");
+  });
+
+  it("gives a separate toilet room its own floor Chore", () => {
+    const keys = choreKeysFor([{ id: "wc", type: "toilet", fixtures: [] }], "wc");
+
+    expect(keys).toEqual(expect.arrayContaining(["clean-toilet", "mop-toilet"]));
+    expect(keys).not.toContain("mop-bathroom");
+  });
+
+  it("still gives a bathroom with no Fixtures read its basin, mirror and floor", () => {
+    expect(choreKeysFor([{ id: "b", type: "bathroom", fixtures: [] }], "b")).toEqual(
+      expect.arrayContaining(["bathroom-sink", "wipe-mirror", "mop-bathroom"]),
+    );
+  });
+
+  it("gives a kitchen-living room the dining table Chore", () => {
+    expect(choreKeysFor([{ id: "lk", type: "living", fixtures: ["hob"] }], "lk")).toContain("wipe-table");
+  });
+
+  it("says which Fixture a Chore belongs to when the Fixture is what matched", () => {
+    const byKey = Object.fromEntries(suggest([bathroom]).chores.map((s) => [s.chore.key, s.fixture]));
+
+    expect(byKey["clean-shower"]).toBe("shower");
+    expect(byKey["clean-toilet"]).toBe("toilet");
+    expect(byKey["wipe-mirror"]).toBeNull();
   });
 });

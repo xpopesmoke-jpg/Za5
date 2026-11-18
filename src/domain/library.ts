@@ -6,35 +6,46 @@ import { LIBRARY_CHORES, LIBRARY_SUPPLIES } from "./library-data";
 export type Schedule = { kind: "every"; days: number } | { kind: "weekdays"; days: number[] };
 
 /**
- * Where a library entry belongs: the Whole home, or any Room that is one of `rooms` or has one of `fixtures`.
- * Matching on Fixtures lets a "Living + kitchen" with a hob still get the kitchen Chores.
+ * Where a starter-library entry belongs: the Whole home, or any Room that is one of `rooms` or has one of
+ * `fixtures`, unless it has one of `notWith`. Matching on Fixtures lets a "Living + kitchen" with a hob get the
+ * kitchen Chores; `notWith` keeps "Wash the dishes" away from a kitchen with a dishwasher.
  */
-export type Where = "whole" | { rooms?: RoomType[]; fixtures?: FixtureType[] };
+export type Placement = "whole" | { rooms?: RoomType[]; fixtures?: FixtureType[]; notWith?: FixtureType[] };
 
-export type LibraryChore = {
+type LibraryEntry = {
   key: string;
   text: Record<Lang, string>;
-  where: Where;
+  placement: Placement;
+};
+
+export type LibraryChore = LibraryEntry & {
   schedule: Schedule;
   /** Effort in minutes */
   effort: number;
 };
 
-export type LibrarySupply = {
-  key: string;
-  text: Record<Lang, string>;
-  where: Where;
-};
+export type LibrarySupply = LibraryEntry;
 
 /** What the suggester needs to know about a Room. */
 export type HomeRoom = { id: string; type: RoomType; fixtures: FixtureType[] };
 
-/** A suggestion's place: a Room's id, or null for the Whole home. */
-export type Suggestion<T> = { roomId: string | null } & T;
+export type ChoreSuggestion = {
+  /** The Room it goes in, or null for the Whole home */
+  roomId: string | null;
+  /** The Fixture it belongs to, when a Fixture is what placed it there (Clean the shower → shower) */
+  fixture: FixtureType | null;
+  chore: LibraryChore;
+};
 
-function fits(where: Where, room: HomeRoom): boolean {
-  if (where === "whole") return false;
-  return (where.rooms?.includes(room.type) ?? false) || (where.fixtures?.some((f) => room.fixtures.includes(f)) ?? false);
+export type SupplySuggestion = { roomId: string | null; supply: LibrarySupply };
+
+/** How an entry fits a Room: not at all, by the Room's type, or by one of its Fixtures. */
+function fit(placement: Placement, room: HomeRoom): { fixture: FixtureType | null } | null {
+  if (placement === "whole") return null;
+  if (placement.notWith?.some((f) => room.fixtures.includes(f))) return null;
+  if (placement.rooms?.includes(room.type)) return { fixture: null };
+  const fixture = placement.fixtures?.find((f) => room.fixtures.includes(f));
+  return fixture ? { fixture } : null;
 }
 
 /**
@@ -45,20 +56,23 @@ function fits(where: Where, room: HomeRoom): boolean {
 export function suggest(
   rooms: HomeRoom[],
   library: { chores: LibraryChore[]; supplies: LibrarySupply[] } = { chores: LIBRARY_CHORES, supplies: LIBRARY_SUPPLIES },
-): { chores: Suggestion<{ chore: LibraryChore }>[]; supplies: Suggestion<{ supply: LibrarySupply }>[] } {
-  const chores: Suggestion<{ chore: LibraryChore }>[] = [];
+): { chores: ChoreSuggestion[]; supplies: SupplySuggestion[] } {
+  const chores: ChoreSuggestion[] = [];
   for (const room of rooms) {
-    for (const chore of library.chores) if (fits(chore.where, room)) chores.push({ roomId: room.id, chore });
+    for (const chore of library.chores) {
+      const f = fit(chore.placement, room);
+      if (f) chores.push({ roomId: room.id, fixture: f.fixture, chore });
+    }
   }
-  for (const chore of library.chores) if (chore.where === "whole") chores.push({ roomId: null, chore });
+  for (const chore of library.chores) if (chore.placement === "whole") chores.push({ roomId: null, fixture: null, chore });
 
-  const supplies: Suggestion<{ supply: LibrarySupply }>[] = [];
+  const supplies: SupplySuggestion[] = [];
   for (const supply of library.supplies) {
-    if (supply.where === "whole") {
+    if (supply.placement === "whole") {
       supplies.push({ roomId: null, supply });
       continue;
     }
-    const room = rooms.find((r) => fits(supply.where, r));
+    const room = rooms.find((r) => fit(supply.placement, r));
     if (room) supplies.push({ roomId: room.id, supply });
   }
   return { chores, supplies };
