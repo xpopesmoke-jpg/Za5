@@ -36,6 +36,13 @@
       "when": 1794963661776,
       "tag": "0004_chores_tighten",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794989326052,
+      "tag": "0005_invites_claims",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { getDb } from "@/db/client";
 import { RoomTiles } from "@/components/room-tiles";
+import { DoneForYouNotes } from "@/components/done-for-you";
+import { InvitePanel } from "@/components/invite-panel";
 import { TodayList } from "@/components/today-list";
 import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
 import { getToday } from "@/server/chores";
+import { getDoneForYou } from "@/server/claims";
 import { getHome } from "@/server/home";
 import { getCurrentHome } from "@/server/session";
 import { signOut } from "./actions";
@@ -13,7 +16,8 @@ import { signOut } from "./actions";
 export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const lang = langOf((await params).lang);
   const { me, household } = await getCurrentHome();
-  const [home, today] = await Promise.all([getHome(getDb(), me.id), getToday(getDb(), me.id, new Date())]);
+  const now = new Date();
+  const [home, today, doneForYou] = await Promise.all([getHome(getDb(), me.id), getToday(getDb(), me.id, now), getDoneForYou(getDb(), me.id)]);
   const t = DICT[lang];
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
@@ -32,8 +36,10 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           </Link>
         )}
       </div>
+      <DoneForYouNotes notes={doneForYou} lang={lang} />
       <TodayList items={today} lang={lang} />
       <RoomTiles home={home} lang={lang} />
+      {household.role === "owner" && <InvitePanel homeName={household.name} />}
       <form action={signOut}>
         <button type="submit" className="text-[14px] font-medium text-ink-2 underline">
           {t.common.signOut}

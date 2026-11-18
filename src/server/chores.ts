@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
-import { chores, fixtures, occurrences, rooms } from "@/db/schema";
+import { chores, fixtures, occurrences, rooms, user } from "@/db/schema";
 import { CHORE_NAME_MAX, CHORE_NOTE_MAX, EFFORT_MAX, EVERY_DAYS_MAX } from "@/domain/limits";
 import { daysBetween, dueAfterDone, firstDue, localDay, scheduleFromColumns, scheduleToColumns, type Day, type Schedule } from "@/domain/schedule";
 import type { FixtureType } from "./home-types";
@@ -33,12 +34,14 @@ export type TodayItem = {
   dueOn: Day;
   /** 0 when due today */
   overdueDays: number;
+  /** Who has claimed it, while the Claim holds */
+  claim: { by: string; name: string; mine: boolean } | null;
 };
 
 export type Completion = { doneBy: string | null; doneAt: Date; effort: number };
 
 /** The current Member's Household (with its time zone); Members and the Owner alike. */
-async function householdOf(db: Db, userId: string) {
+export async function householdOf(db: Db, userId: string) {
   const household = await getMyHousehold(db, userId);
   if (!household) throw new NotFoundError("Home");
   return household;
@@ -47,7 +50,7 @@ async function householdOf(db: Db, userId: string) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** An id from a form or a link; one that cannot be an id is simply not found (rather than a database error). */
-function idOf(id: string, what: string) {
+export function idOf(id: string, what: string) {
   if (!UUID.test(id)) throw new NotFoundError(what);
   return id;
 }
@@ -123,6 +126,8 @@ export async function addChore(db: Db, userId: string, input: NewChore, now: Dat
 export async function getToday(db: Db, userId: string, now: Date): Promise<TodayItem[]> {
   const home = await householdOf(db, userId);
   const today = localDay(now, home.timeZone);
+  // Only a Claim that still holds today counts; a lapsed one is as if nobody had claimed it.
+  const claimer = alias(user, "claimer");
   const rows = await db
     .select({
       occurrenceId: occurrences.id,
@@ -135,14 +140,21 @@ export async function getToday(db: Db, userId: string, now: Date): Promise<Today
       needsRoom: chores.needsRoom,
       fixtureType: fixtures.type,
       dueOn: occurrences.dueOn,
+      claimedBy: claimer.id,
+      claimerName: claimer.name,
     })
     .from(occurrences)
     .innerJoin(chores, eq(chores.id, occurrences.choreId))
     .leftJoin(rooms, eq(rooms.id, chores.roomId))
     .leftJoin(fixtures, eq(fixtures.id, chores.fixtureId))
+    .leftJoin(claimer, and(eq(claimer.id, occurrences.claimedBy), gte(occurrences.claimedUntil, today)))
     .where(and(eq(occurrences.householdId, home.id), isNull(occurrences.completedAt), lte(occurrences.dueOn, today)))
     .orderBy(asc(occurrences.dueOn), asc(chores.createdAt));
-  return rows.map((r) => ({ ...r, overdueDays: daysBetween(r.dueOn, today) }));
+  return rows.map(({ claimedBy, claimerName, ...r }) => ({
+    ...r,
+    overdueDays: daysBetween(r.dueOn, today),
+    claim: claimedBy ? { by: claimedBy, name: claimerName ?? "", mine: claimedBy === userId } : null,
+  }));
 }
 
 /**

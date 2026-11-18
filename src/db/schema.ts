@@ -130,6 +130,11 @@ export const occurrences = pgTable(
     // Kept even if the account goes, so history stays readable; Effort is copied in as it was when done.
     completedBy: text("completed_by").references(() => user.id, { onDelete: "set null" }),
     effort: integer("effort"),
+    // A Claim: who took it, and the last day it holds (the due day, or the day it was claimed if that is later).
+    claimedBy: text("claimed_by").references(() => user.id, { onDelete: "set null" }),
+    claimedUntil: date("claimed_until", { mode: "string" }),
+    // When the claimer saw "Ana did this for you" and put it away.
+    claimNoteSeenAt: timestamp("claim_note_seen_at", { withTimezone: true }),
   },
   (t) => [
     index("occurrences_household_due_idx").on(t.householdId, t.dueOn),
@@ -137,3 +142,15 @@ export const occurrences = pgTable(
     uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null`),
   ],
 );
+
+/** A one-time link from the Owner that lets one person join the Household. */
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  usedBy: text("used_by").references(() => user.id, { onDelete: "set null" }),
+});

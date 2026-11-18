@@ -8,7 +8,7 @@ export async function makeUser(db: Db, name: string) {
   return id;
 }
 
-/** Adds an existing account to a Household as a plain Member (invites arrive in a later ticket). */
+/** Adds an existing account to a Household as a plain Member, without an invite. */
 export async function addMember(db: Db, householdId: string, userId: string) {
   await db.insert(members).values({ householdId, userId, role: "member" });
 }

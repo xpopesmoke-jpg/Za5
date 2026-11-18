@@ -61,7 +61,7 @@ A named bundle of Chores done together, such as "Sunday reset".
 _Avoid_: Checklist, program
 
 **Claim**:
-A Member taking an Occurrence from the open pool as theirs to do; it lapses at the end of the day the Occurrence was due, and anyone may still complete it.
+A Member taking an Occurrence from the open pool as theirs to do; it lapses at the end of the day the Occurrence was due (or, for an overdue one, at the end of the day it was claimed), and anyone may still complete it.
 _Avoid_: Assign (assigning is done to someone, claiming is done by them)
 
 **Za5**:

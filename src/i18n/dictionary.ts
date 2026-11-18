@@ -4,8 +4,9 @@ import auth from "./messages/auth";
 import home from "./messages/home";
 import rooms from "./messages/rooms";
 import chores from "./messages/chores";
+import invite from "./messages/invite";
 
-const areas = { common, auth, home, rooms, chores };
+const areas = { common, auth, home, rooms, chores, invite };
 type Areas = typeof areas;
 export type Dict = { [K in keyof Areas]: Areas[K]["en"] };
 

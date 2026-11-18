@@ -22,6 +22,10 @@ const HR_EXACT: Record<string, string> = {
   "That fixture is in another room.": "Taj element je u drugoj prostoriji.",
   "That one is already done.": "To je već gotovo.",
   "Chore wasn't found.": "Zadatak nije pronađen.",
+  "Someone else has already claimed this.": "Netko drugi je to već preuzeo.",
+  "Only the person who claimed it can let it go.": "Samo onaj tko je preuzeo može vratiti.",
+  "Only the owner can invite people.": "Samo vlasnik može pozivati ljude.",
+  "This invite link has been used or has run out. Ask for a new one.": "Ova poveznica je već iskorištena ili je istekla. Zatraži novu.",
 };
 
 const HR_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [

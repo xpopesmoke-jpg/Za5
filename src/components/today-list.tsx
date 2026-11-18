@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Lang } from "@/i18n/config";
 import { DICT } from "@/i18n/dictionary";
 import type { TodayItem } from "@/server/chores";
-import { completeAction } from "@/app/[lang]/chores/actions";
+import { claimAction, completeAction, unclaimAction } from "@/app/[lang]/chores/actions";
 
 /** Today's list: what is due and overdue, each with a big round Done. */
 export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
@@ -51,11 +51,12 @@ export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
                   </span>
                   {item.note && <span className="text-[13px] text-ink-2">{item.note}</span>}
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-extrabold ${late ? "bg-accent text-accent-ink" : "bg-raised text-ink-2"}`}
-                >
-                  {late ? t.overdue(item.overdueDays) : t.dueToday}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className={`rounded-full px-2.5 py-1 text-[12px] font-extrabold ${late ? "bg-accent text-accent-ink" : "bg-raised text-ink-2"}`}>
+                    {late ? t.overdue(item.overdueDays) : t.dueToday}
+                  </span>
+                  <ClaimControl item={item} t={t} />
+                </div>
               </li>
             );
           })}
@@ -63,4 +64,30 @@ export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
       )}
     </section>
   );
+}
+
+const small = "min-h-11 rounded-full border-2 px-3 text-[13px] font-extrabold";
+
+/** "I'll do it" from the pool, "You're on it" with Give back, or who else is on it. */
+function ClaimControl({ item, t }: { item: TodayItem; t: (typeof DICT)["en"]["chores"] }) {
+  if (!item.claim) {
+    return (
+      <form action={claimAction.bind(null, item.occurrenceId)}>
+        <button type="submit" aria-label={t.claimLabel(item.name)} className={`${small} border-edge bg-za5 text-za5-ink`}>
+          {t.claim}
+        </button>
+      </form>
+    );
+  }
+  if (item.claim.mine) {
+    return (
+      <form action={unclaimAction.bind(null, item.occurrenceId)} className="flex items-center gap-2">
+        <span className="text-[12px] font-extrabold text-ink">{t.youreOnIt}</span>
+        <button type="submit" className={`${small} border-line bg-surface text-ink-2`}>
+          {t.giveBack}
+        </button>
+      </form>
+    );
+  }
+  return <span className="text-[12px] font-extrabold text-ink">{t.onIt(item.claim.name)}</span>;
 }

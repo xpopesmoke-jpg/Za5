@@ -6,22 +6,40 @@ import { getDb } from "@/db/client";
 import type { Schedule } from "@/domain/schedule";
 import { requestLang } from "@/i18n/server";
 import { addChore, completeOccurrence } from "@/server/chores";
-import { NotFoundError, ValidationError } from "@/server/errors";
+import { claimOccurrence, dismissDoneForYou, unclaimOccurrence } from "@/server/claims";
+import { NotAllowedError, NotFoundError, ValidationError } from "@/server/errors";
 import { getCurrentUser } from "@/server/session";
 import { text, toActionError, type ActionResult } from "../action-result";
 
-/**
- * Done on Today's list: credits whoever tapped it. If someone else got there first ("already done") the list
- * simply refreshes, which is the answer the person needs.
- */
+/** Done on Today's list: credits whoever tapped it. */
 export async function completeAction(occurrenceId: string): Promise<void> {
+  await quietly((me) => completeOccurrence(getDb(), me, occurrenceId, new Date()));
+}
+
+/**
+ * Runs a tap on Today's list. When someone else got there first (already done, already claimed) the list
+ * simply refreshes and shows how things stand, which is the answer the person needs.
+ */
+async function quietly(run: (me: string) => Promise<unknown>) {
   const me = await getCurrentUser();
   try {
-    await completeOccurrence(getDb(), me.id, occurrenceId, new Date());
+    await run(me.id);
   } catch (err) {
-    if (!(err instanceof ValidationError || err instanceof NotFoundError)) throw err;
+    if (!(err instanceof ValidationError || err instanceof NotFoundError || err instanceof NotAllowedError)) throw err;
   }
   revalidatePath("/", "layout");
+}
+
+export async function claimAction(occurrenceId: string): Promise<void> {
+  await quietly((me) => claimOccurrence(getDb(), me, occurrenceId, new Date()));
+}
+
+export async function unclaimAction(occurrenceId: string): Promise<void> {
+  await quietly((me) => unclaimOccurrence(getDb(), me, occurrenceId, new Date()));
+}
+
+export async function dismissDoneForYouAction(occurrenceId: string): Promise<void> {
+  await quietly((me) => dismissDoneForYou(getDb(), me, occurrenceId, new Date()));
 }
 
 /** "whole", "room:<id>" or "fixture:<id>" from the Where picker. */

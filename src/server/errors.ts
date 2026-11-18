@@ -10,3 +10,11 @@ export class ValidationError extends Error {}
 
 /** Something this Member may not do, such as a Member changing the home (only the Owner can). */
 export class NotAllowedError extends Error {}
+
+/** Postgres refused a row because it would break a unique rule (code 23505), possibly wrapped by the driver. */
+export function isUniqueViolation(err: unknown): boolean {
+  for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
+    if (e.code === "23505") return true;
+  }
+  return false;
+}

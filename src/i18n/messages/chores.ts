@@ -25,6 +25,13 @@ const en = {
   noteHint: "Optional, e.g. which spray to use.",
   save: "Add chore",
   cancel: "Cancel",
+  claim: "I'll do it",
+  claimLabel: (name: string) => `I'll do ${name}`,
+  giveBack: "Give back",
+  youreOnIt: "You're on it",
+  onIt: (name: string) => `${name} is on it`,
+  doneForYou: (by: string, chore: string) => `${by} did this for you: ${chore}`,
+  gotIt: "OK",
   weekdaysShort: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as [string, string, string, string, string, string, string],
 };
 
@@ -54,6 +61,13 @@ const hr: Shape<typeof en> = {
   noteHint: "Neobavezno, npr. koje sredstvo koristiti.",
   save: "Dodaj zadatak",
   cancel: "Odustani",
+  claim: "Ja ću",
+  claimLabel: (name: string) => `Ja ću: ${name}`,
+  giveBack: "Vrati",
+  youreOnIt: "Na tebi je",
+  onIt: (name: string) => `Preuzeto: ${name}`,
+  doneForYou: (by: string, chore: string) => `Gotovo umjesto tebe (${by}): ${chore}`,
+  gotIt: "U redu",
   weekdaysShort: ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"],
 };
 

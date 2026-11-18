@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { floors, households, memberRole, members } from "@/db/schema";
 import { HOME_NAME_MAX } from "@/domain/limits";
-import { ValidationError } from "./errors";
+import { isUniqueViolation, ValidationError } from "./errors";
 
 export type MyHousehold = { id: string; name: string; role: (typeof memberRole.enumValues)[number]; timeZone: string };
 
@@ -37,9 +37,3 @@ export async function getMyHousehold(db: Db, userId: string): Promise<MyHousehol
   return row ?? null;
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
-    if (e.code === "23505") return true;
-  }
-  return false;
-}
