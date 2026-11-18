@@ -1,0 +1,1 @@
+CREATE INDEX "occurrences_claimed_by_idx" ON "occurrences" USING btree ("claimed_by");

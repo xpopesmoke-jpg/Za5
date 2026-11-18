@@ -12,6 +12,10 @@ _Avoid_: Family, team, group
 A person who belongs to a Household and can claim and complete Chores; a person belongs to one Household.
 _Avoid_: User (when talking about the household), participant
 
+**Invite**:
+A one-time link from the Owner that lets one person join the Household; it works once and runs out after 7 days.
+_Avoid_: Invitation code, referral
+
 **Former member**:
 Someone who has left or been removed from a Household; their completed history stays and their Claims return to the pool.
 _Avoid_: Deleted user, ex-member

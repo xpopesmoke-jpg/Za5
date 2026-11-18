@@ -4,7 +4,7 @@ import type { Db } from "@/db/client";
 import { addMember, makeUser } from "@/test/helpers";
 import { createHousehold, getMyHousehold } from "./households";
 import { NotAllowedError, ValidationError } from "./errors";
-import { acceptInvite, createInvite, getInvite } from "./invites";
+import { acceptInvite, createInvite, getInvite, isInviteToken, joinIfInvited } from "./invites";
 
 const at = (local: string) => new Date(local.replace(" ", "T") + ":00+01:00");
 
@@ -68,5 +68,32 @@ describe("inviting a partner", () => {
     await addMember(db, homeId, ana);
 
     await expect(createInvite(db, ana, at("2026-11-18 09:00"))).rejects.toThrow(NotAllowedError);
+  });
+});
+
+describe("joining straight from sign-up", () => {
+  it("joins the Household with the invite token right after the account is made", async () => {
+    const { token } = await createInvite(db, pope, at("2026-11-18 09:00"));
+    const ana = await makeUser(db, "Ana");
+
+    expect(await joinIfInvited(db, ana, token, at("2026-11-18 10:00"))).toBe(true);
+    expect((await getMyHousehold(db, ana))?.id).toBe(homeId);
+  });
+
+  it("leaves a person without a home when the token is not usable, so the join page can explain", async () => {
+    const ana = await makeUser(db, "Ana");
+
+    expect(await joinIfInvited(db, ana, "x".repeat(32), at("2026-11-18 10:00"))).toBe(false);
+    expect(await getMyHousehold(db, ana)).toBeNull();
+  });
+});
+
+describe("invite tokens", () => {
+  it("knows a token's shape, so nothing else rides through sign-in", async () => {
+    const { token } = await createInvite(db, pope, at("2026-11-18 09:00"));
+
+    expect(isInviteToken(token)).toBe(true);
+    expect(isInviteToken("../../evil")).toBe(false);
+    expect(isInviteToken("")).toBe(false);
   });
 });

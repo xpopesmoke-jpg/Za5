@@ -65,8 +65,8 @@ const hr: Shape<typeof en> = {
   claimLabel: (name: string) => `Ja ću: ${name}`,
   giveBack: "Vrati",
   youreOnIt: "Na tebi je",
-  onIt: (name: string) => `Preuzeto: ${name}`,
-  doneForYou: (by: string, chore: string) => `Gotovo umjesto tebe (${by}): ${chore}`,
+  onIt: (name: string) => `${name} je na tome`,
+  doneForYou: (by: string, chore: string) => `Odrađeno umjesto tebe: ${chore} (${by})`,
   gotIt: "U redu",
   weekdaysShort: ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"],
 };

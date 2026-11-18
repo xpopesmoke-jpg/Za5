@@ -2,7 +2,7 @@ import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { chores, households, occurrences, user } from "@/db/schema";
 import { localDay, type Day } from "@/domain/schedule";
-import { householdOf, idOf } from "./chores";
+import { householdOf, idOf } from "./scope";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
 
 export type DoneForYou = { occurrenceId: string; choreName: string; doneByName: string; doneAt: Date };
@@ -48,7 +48,7 @@ export async function unclaimOccurrence(db: Db, userId: string, occurrenceId: st
 }
 
 /**
- * "Pope did this for you": Occurrences this Member had claimed that someone else completed while the Claim
+ * "Ana did this for you": Occurrences this Member had claimed that someone else completed while the Claim
  * still held, and that they have not put away yet. Newest first.
  */
 export async function getDoneForYou(db: Db, userId: string): Promise<DoneForYou[]> {

@@ -3,10 +3,14 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { households, invites, members, user } from "@/db/schema";
 import { isUniqueViolation, NotAllowedError, NotFoundError, ValidationError } from "./errors";
-import { getMyHousehold } from "./households";
+import { ALREADY_IN_A_HOME, getMyHousehold } from "./households";
 
 /** How long an invite link works. */
 export const INVITE_DAYS = 7;
+
+/** What an invite token looks like (24 random bytes, base64url); anything else never rides through sign-in. */
+const TOKEN_SHAPE = /^[A-Za-z0-9_-]{32}$/;
+export const isInviteToken = (value: string) => TOKEN_SHAPE.test(value);
 
 const NOT_VALID = "This invite link has been used or has run out. Ask for a new one.";
 
@@ -36,7 +40,7 @@ export async function getInvite(db: Db, token: string, now: Date): Promise<{ hou
 
 /** The signed-in person joins the invite's Household as a Member, if they belong to none yet. */
 export async function acceptInvite(db: Db, userId: string, token: string, now: Date): Promise<void> {
-  if (await getMyHousehold(db, userId)) throw new ValidationError("You already belong to a home.");
+  if (await getMyHousehold(db, userId)) throw new ValidationError(ALREADY_IN_A_HOME);
   try {
     await db.transaction(async (tx) => {
       // Held until the end, so two people opening the same link at once cannot both get in.
@@ -47,7 +51,22 @@ export async function acceptInvite(db: Db, userId: string, token: string, now: D
     });
   } catch (err) {
     // One current Household per person, also when two joins race.
-    if (isUniqueViolation(err)) throw new ValidationError("You already belong to a home.");
+    if (isUniqueViolation(err)) throw new ValidationError(ALREADY_IN_A_HOME);
+    throw err;
+  }
+}
+
+/**
+ * Right after sign-up with an invite: joins the Household if the link is still good. Returns false (and joins
+ * nothing) when it is not, so the join page can say why.
+ */
+export async function joinIfInvited(db: Db, userId: string, token: string, now: Date): Promise<boolean> {
+  if (!isInviteToken(token)) return false;
+  try {
+    await acceptInvite(db, userId, token, now);
+    return true;
+  } catch (err) {
+    if (err instanceof ValidationError) return false;
     throw err;
   }
 }

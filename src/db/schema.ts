@@ -139,6 +139,7 @@ export const occurrences = pgTable(
   (t) => [
     index("occurrences_household_due_idx").on(t.householdId, t.dueOn),
     index("occurrences_chore_idx").on(t.choreId),
+    index("occurrences_claimed_by_idx").on(t.claimedBy),
     uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null`),
   ],
 );

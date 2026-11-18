@@ -6,7 +6,7 @@ import { CHORE_NAME_MAX, CHORE_NOTE_MAX, EFFORT_MAX, EVERY_DAYS_MAX } from "@/do
 import { daysBetween, dueAfterDone, firstDue, localDay, scheduleFromColumns, scheduleToColumns, type Day, type Schedule } from "@/domain/schedule";
 import type { FixtureType } from "./home-types";
 import { NotFoundError, ValidationError } from "./errors";
-import { getMyHousehold } from "./households";
+import { householdOf, idOf } from "./scope";
 
 export type NewChore = {
   name: string;
@@ -40,20 +40,6 @@ export type TodayItem = {
 
 export type Completion = { doneBy: string | null; doneAt: Date; effort: number };
 
-/** The current Member's Household (with its time zone); Members and the Owner alike. */
-export async function householdOf(db: Db, userId: string) {
-  const household = await getMyHousehold(db, userId);
-  if (!household) throw new NotFoundError("Home");
-  return household;
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** An id from a form or a link; one that cannot be an id is simply not found (rather than a database error). */
-export function idOf(id: string, what: string) {
-  if (!UUID.test(id)) throw new NotFoundError(what);
-  return id;
-}
 
 function checkedSchedule(schedule: Schedule): Schedule {
   if (schedule.kind === "every") {

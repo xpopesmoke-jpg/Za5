@@ -8,6 +8,7 @@ import { getMyHousehold } from "@/server/households";
 import { getInvite } from "@/server/invites";
 import { findCurrentUser } from "@/server/session";
 import { acceptInviteAction } from "../actions";
+import { withInvite } from "../../invite-param";
 
 const linkButton = "flex min-h-12 items-center justify-center rounded-full border-2 border-edge px-6 text-[16px] font-extrabold";
 
@@ -19,7 +20,6 @@ export default async function JoinPage({ params }: PageProps<"/[lang]/join/[toke
   const invite = await getInvite(getDb(), token, new Date());
   const me = await findCurrentUser();
   const inHome = me ? await getMyHousehold(getDb(), me.id) : null;
-  const q = `?invite=${encodeURIComponent(token)}`;
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-5 py-10">
       <p className="font-display text-[22px] font-extrabold">Za5</p>
@@ -45,8 +45,8 @@ export default async function JoinPage({ params }: PageProps<"/[lang]/join/[toke
             </ActionForm>
           ) : (
             <div className="flex flex-col gap-3">
-              <Link href={`/sign-up${q}`} className={`${linkButton} bg-accent text-accent-ink`}>{t.createAccount}</Link>
-              <Link href={`/sign-in${q}`} className={`${linkButton} bg-surface`}>{t.haveAccount}</Link>
+              <Link href={withInvite("/sign-up", token)} className={`${linkButton} bg-accent text-accent-ink`}>{t.createAccount}</Link>
+              <Link href={withInvite("/sign-in", token)} className={`${linkButton} bg-surface`}>{t.haveAccount}</Link>
             </div>
           )}
         </>

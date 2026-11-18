@@ -4,6 +4,8 @@ import { floors, households, memberRole, members } from "@/db/schema";
 import { HOME_NAME_MAX } from "@/domain/limits";
 import { isUniqueViolation, ValidationError } from "./errors";
 
+export const ALREADY_IN_A_HOME = "You already belong to a home.";
+
 export type MyHousehold = { id: string; name: string; role: (typeof memberRole.enumValues)[number]; timeZone: string };
 
 /** Names a new home: creates the Household with this person as its Owner. */
@@ -11,7 +13,7 @@ export async function createHousehold(db: Db, userId: string, typedName: string)
   const name = typedName.trim();
   if (!name) throw new ValidationError("Give your home a name.");
   if (name.length > HOME_NAME_MAX) throw new ValidationError(`Keep the name under ${HOME_NAME_MAX} characters.`);
-  if (await getMyHousehold(db, userId)) throw new ValidationError("You already belong to a home.");
+  if (await getMyHousehold(db, userId)) throw new ValidationError(ALREADY_IN_A_HOME);
   try {
     return await db.transaction(async (tx) => {
       const [household] = await tx.insert(households).values({ name }).returning();
@@ -22,7 +24,7 @@ export async function createHousehold(db: Db, userId: string, typedName: string)
     });
   } catch (err) {
     // Two submits at once both pass the check above; the one-current-household index stops the second.
-    if (isUniqueViolation(err)) throw new ValidationError("You already belong to a home.");
+    if (isUniqueViolation(err)) throw new ValidationError(ALREADY_IN_A_HOME);
     throw err;
   }
 }

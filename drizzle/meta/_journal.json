@@ -43,6 +43,13 @@
       "when": 1794989326052,
       "tag": "0005_invites_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794990082134,
+      "tag": "0006_claims_index",
+      "breakpoints": true
     }
   ]
 }
