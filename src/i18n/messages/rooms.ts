@@ -22,6 +22,7 @@ const en = {
   removeFloor: "Remove floor",
   removeFloorHint: "Removes the floor and all its rooms.",
   tapAgain: "Tap again to remove",
+  roomAndFixture: (room: string, fixture: string) => `${room}, ${fixture.toLowerCase()}`,
   roomTypes: {
     kitchen: "Kitchen", living: "Living room", dining: "Dining room", bedroom: "Bedroom", kids: "Children's room",
     bathroom: "Bathroom", toilet: "Toilet", hall: "Hall", laundry: "Laundry", office: "Office", storage: "Storage",
@@ -53,6 +54,7 @@ const hr: Shape<typeof en> = {
   removeFloor: "Ukloni etažu",
   removeFloorHint: "Uklanja etažu i sve njezine prostorije.",
   tapAgain: "Dodirni ponovno za uklanjanje",
+  roomAndFixture: (room: string, fixture: string) => `${room}, ${fixture.toLowerCase()}`,
   roomTypes: {
     kitchen: "Kuhinja", living: "Dnevni boravak", dining: "Blagovaonica", bedroom: "Spavaća soba", kids: "Dječja soba",
     bathroom: "Kupaonica", toilet: "WC", hall: "Hodnik", laundry: "Praonica", office: "Radna soba", storage: "Ostava",
@@ -60,7 +62,7 @@ const hr: Shape<typeof en> = {
   },
   fixtureTypes: {
     shower: "Tuš", bathtub: "Kada", toilet: "WC školjka", sink: "Sudoper ili umivaonik", oven: "Pećnica", hob: "Ploča za kuhanje",
-    fridge: "Hladnjak", dishwasher: "Perilica suđa", washing_machine: "Perilica rublja", dryer: "Sušilica", counter: "Radna ploča", window: "Prozor",
+    fridge: "Hladnjak", dishwasher: "Perilica posuđa", washing_machine: "Perilica rublja", dryer: "Sušilica", counter: "Radna ploča", window: "Prozor",
   },
 };
 

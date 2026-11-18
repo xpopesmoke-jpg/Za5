@@ -7,7 +7,7 @@ import { completeAction } from "@/app/[lang]/chores/actions";
 /** Today's list: what is due and overdue, each with a big round Done. */
 export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
   const t = DICT[lang].chores;
-  const fx = DICT[lang].rooms.fixtureTypes;
+  const r = DICT[lang].rooms;
   return (
     <section aria-labelledby="today" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
@@ -23,7 +23,13 @@ export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => {
-            const where = item.roomName ? (item.fixtureType ? `${item.roomName}, ${fx[item.fixtureType].toLowerCase()}` : item.roomName) : t.wholeHome;
+            const where = item.needsRoom
+              ? t.needsRoom
+              : !item.roomName
+                ? t.wholeHome
+                : item.fixtureType
+                  ? r.roomAndFixture(item.roomName, r.fixtureTypes[item.fixtureType])
+                  : item.roomName;
             const late = item.overdueDays > 0;
             return (
               <li key={item.occurrenceId} className="flex items-center gap-3 rounded-card border-2 border-edge bg-surface p-3">

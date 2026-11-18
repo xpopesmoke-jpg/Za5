@@ -6,8 +6,9 @@ export type Day = string;
 
 /** The calendar day it is at `now` in the given time zone. */
 export function localDay(now: Date, timeZone: string): Day {
-  // en-CA writes dates as YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const part = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 const asUtc = (day: Day) => new Date(`${day}T00:00:00Z`);
@@ -34,11 +35,27 @@ export function firstDue(schedule: Schedule, today: Day): Day {
 }
 
 /**
- * The next due day once an Occurrence is done on `doneOn`: an interval counts from the completion, however
- * late; fixed weekdays move to the next of those days after it.
+ * The next due day once an Occurrence due on `dueOn` is done on `doneOn`. An interval counts from the
+ * completion, however late or early. Fixed weekdays move to the next of those days after both the due day and
+ * the day it was done, so done late it skips the days that passed, and done early it is never due again on the
+ * day it was already done for.
  */
-export function dueAfterDone(schedule: Schedule, doneOn: Day): Day {
-  return schedule.kind === "every" ? addDays(doneOn, schedule.days) : nextWeekday(schedule.days, doneOn, 1);
+export function dueAfterDone(schedule: Schedule, dueOn: Day, doneOn: Day): Day {
+  if (schedule.kind === "every") return addDays(doneOn, schedule.days);
+  return nextWeekday(schedule.days, dueOn > doneOn ? dueOn : doneOn, 1);
+}
+
+/** How a Schedule is kept in a Chore's row. */
+export type ScheduleColumns = { scheduleKind: Schedule["kind"]; everyDays: number | null; weekdays: number[] | null };
+
+export function scheduleToColumns(schedule: Schedule): ScheduleColumns {
+  return schedule.kind === "every"
+    ? { scheduleKind: "every", everyDays: schedule.days, weekdays: null }
+    : { scheduleKind: "weekdays", everyDays: null, weekdays: schedule.days };
+}
+
+export function scheduleFromColumns(row: ScheduleColumns): Schedule {
+  return row.scheduleKind === "every" ? { kind: "every", days: row.everyDays ?? 1 } : { kind: "weekdays", days: row.weekdays ?? [] };
 }
 
 function nextWeekday(days: number[], from: Day, skip: number): Day {

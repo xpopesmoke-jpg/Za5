@@ -17,7 +17,7 @@ export default async function NewChorePage({ params }: PageProps<"/[lang]/chores
   const { me } = await getCurrentHome();
   const home = await getHome(getDb(), me.id);
   const t = DICT[lang].chores;
-  const fx = DICT[lang].rooms.fixtureTypes;
+  const r = DICT[lang].rooms;
   const rooms = home.floors.flatMap((f) => f.rooms);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
@@ -41,7 +41,7 @@ export default async function NewChorePage({ params }: PageProps<"/[lang]/chores
               </option>,
               ...room.fixtures.map((f) => (
                 <option key={f.id} value={`fixture:${f.id}`}>
-                  {`${room.name}, ${fx[f.type].toLowerCase()}`}
+                  {r.roomAndFixture(room.name, r.fixtureTypes[f.type])}
                 </option>
               )),
             ])}

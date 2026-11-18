@@ -1,0 +1,3 @@
+ALTER TABLE "chores" DROP CONSTRAINT "chores_schedule_shape";--> statement-breakpoint
+CREATE INDEX "occurrences_chore_idx" ON "occurrences" USING btree ("chore_id");--> statement-breakpoint
+ALTER TABLE "chores" ADD CONSTRAINT "chores_schedule_shape" CHECK (("chores"."schedule_kind" = 'every' and "chores"."every_days" > 0 and "chores"."weekdays" is null) or ("chores"."schedule_kind" = 'weekdays' and "chores"."every_days" is null and cardinality("chores"."weekdays") > 0 and "chores"."weekdays" <@ array[1,2,3,4,5,6,7]));

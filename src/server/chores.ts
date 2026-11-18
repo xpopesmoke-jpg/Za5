@@ -1,8 +1,8 @@
-import { and, asc, eq, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { chores, fixtures, households, occurrences, rooms } from "@/db/schema";
+import { chores, fixtures, occurrences, rooms } from "@/db/schema";
 import { CHORE_NAME_MAX, CHORE_NOTE_MAX, EFFORT_MAX, EVERY_DAYS_MAX } from "@/domain/limits";
-import { daysBetween, dueAfterDone, firstDue, localDay, type Day, type Schedule } from "@/domain/schedule";
+import { daysBetween, dueAfterDone, firstDue, localDay, scheduleFromColumns, scheduleToColumns, type Day, type Schedule } from "@/domain/schedule";
 import type { FixtureType } from "./home-types";
 import { NotFoundError, ValidationError } from "./errors";
 import { getMyHousehold } from "./households";
@@ -27,18 +27,29 @@ export type TodayItem = {
   effort: number;
   roomId: string | null;
   roomName: string | null;
+  /** Its Room was removed; it waits in "Needs a new room" (roomId is then null, but it is not the Whole home) */
+  needsRoom: boolean;
   fixtureType: FixtureType | null;
   dueOn: Day;
   /** 0 when due today */
   overdueDays: number;
 };
 
-/** The current Member's Household with its time zone; Members and the Owner alike. */
-async function homeOf(db: Db, userId: string) {
-  const mine = await getMyHousehold(db, userId);
-  if (!mine) throw new NotFoundError("Home");
-  const [row] = await db.select({ timeZone: households.timeZone }).from(households).where(eq(households.id, mine.id));
-  return { id: mine.id, timeZone: row.timeZone };
+export type Completion = { doneBy: string | null; doneAt: Date; effort: number };
+
+/** The current Member's Household (with its time zone); Members and the Owner alike. */
+async function householdOf(db: Db, userId: string) {
+  const household = await getMyHousehold(db, userId);
+  if (!household) throw new NotFoundError("Home");
+  return household;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** An id from a form or a link; one that cannot be an id is simply not found (rather than a database error). */
+function idOf(id: string, what: string) {
+  if (!UUID.test(id)) throw new NotFoundError(what);
+  return id;
 }
 
 function checkedSchedule(schedule: Schedule): Schedule {
@@ -68,18 +79,23 @@ function checkedText(input: NewChore) {
 }
 
 /** Where the Chore goes: a Fixture (and so its Room), a Room, or the Whole home. Both must be this home's. */
-async function checkedPlace(db: Db, householdId: string, input: NewChore) {
+async function checkedPlace(db: Pick<Db, "select">, householdId: string, input: NewChore) {
   if (input.fixtureId) {
     const [fixture] = await db
       .select({ id: fixtures.id, roomId: fixtures.roomId })
       .from(fixtures)
-      .where(and(eq(fixtures.id, input.fixtureId), eq(fixtures.householdId, householdId)));
+      .where(and(eq(fixtures.id, idOf(input.fixtureId, "Fixture")), eq(fixtures.householdId, householdId)))
+      .for("share");
     if (!fixture) throw new NotFoundError("Fixture");
     if (input.roomId && input.roomId !== fixture.roomId) throw new ValidationError("That fixture is in another room.");
     return { roomId: fixture.roomId, fixtureId: fixture.id };
   }
   if (input.roomId) {
-    const [room] = await db.select({ id: rooms.id }).from(rooms).where(and(eq(rooms.id, input.roomId), eq(rooms.householdId, householdId)));
+    const [room] = await db
+      .select({ id: rooms.id })
+      .from(rooms)
+      .where(and(eq(rooms.id, idOf(input.roomId, "Room")), eq(rooms.householdId, householdId)))
+      .for("share");
     if (!room) throw new NotFoundError("Room");
     return { roomId: room.id, fixtureId: null };
   }
@@ -88,24 +104,15 @@ async function checkedPlace(db: Db, householdId: string, input: NewChore) {
 
 /** Any Member adds a Chore; its first Occurrence is due today (interval) or on its next weekday. */
 export async function addChore(db: Db, userId: string, input: NewChore, now: Date): Promise<string> {
-  const home = await homeOf(db, userId);
+  const home = await householdOf(db, userId);
   const { name, note } = checkedText(input);
   const schedule = checkedSchedule(input.schedule);
-  const place = await checkedPlace(db, home.id, input);
   return db.transaction(async (tx) => {
+    // Checked inside the transaction, with the Room held, so it cannot be removed under us.
+    const place = await checkedPlace(tx, home.id, input);
     const [chore] = await tx
       .insert(chores)
-      .values({
-        householdId: home.id,
-        ...place,
-        name,
-        note,
-        effort: input.effort,
-        scheduleKind: schedule.kind,
-        everyDays: schedule.kind === "every" ? schedule.days : null,
-        weekdays: schedule.kind === "weekdays" ? schedule.days : null,
-        createdBy: userId,
-      })
+      .values({ householdId: home.id, ...place, name, note, effort: input.effort, ...scheduleToColumns(schedule), createdBy: userId })
       .returning({ id: chores.id });
     await tx.insert(occurrences).values({ householdId: home.id, choreId: chore.id, dueOn: firstDue(schedule, localDay(now, home.timeZone)) });
     return chore.id;
@@ -114,7 +121,7 @@ export async function addChore(db: Db, userId: string, input: NewChore, now: Dat
 
 /** Today's list: every open Occurrence due today or earlier, the longest overdue first. */
 export async function getToday(db: Db, userId: string, now: Date): Promise<TodayItem[]> {
-  const home = await homeOf(db, userId);
+  const home = await householdOf(db, userId);
   const today = localDay(now, home.timeZone);
   const rows = await db
     .select({
@@ -125,6 +132,7 @@ export async function getToday(db: Db, userId: string, now: Date): Promise<Today
       effort: chores.effort,
       roomId: chores.roomId,
       roomName: rooms.name,
+      needsRoom: chores.needsRoom,
       fixtureType: fixtures.type,
       dueOn: occurrences.dueOn,
     })
@@ -142,24 +150,31 @@ export async function getToday(db: Db, userId: string, now: Date): Promise<Today
  * Occurrence, so a Chore never has more than one open.
  */
 export async function completeOccurrence(db: Db, userId: string, occurrenceId: string, now: Date): Promise<{ nextDue: Day }> {
-  const home = await homeOf(db, userId);
+  const home = await householdOf(db, userId);
   const doneOn = localDay(now, home.timeZone);
   return db.transaction(async (tx) => {
     const [row] = await tx
       .select({ occurrence: occurrences, chore: chores })
       .from(occurrences)
       .innerJoin(chores, eq(chores.id, occurrences.choreId))
-      .where(and(eq(occurrences.id, occurrenceId), eq(occurrences.householdId, home.id)))
+      .where(and(eq(occurrences.id, idOf(occurrenceId, "Chore")), eq(occurrences.householdId, home.id)))
       .for("update", { of: occurrences });
     if (!row) throw new NotFoundError("Chore");
     if (row.occurrence.completedAt) throw new ValidationError("That one is already done.");
     await tx.update(occurrences).set({ completedAt: now, completedBy: userId, effort: row.chore.effort }).where(eq(occurrences.id, occurrenceId));
-    const schedule: Schedule =
-      row.chore.scheduleKind === "every"
-        ? { kind: "every", days: row.chore.everyDays! }
-        : { kind: "weekdays", days: row.chore.weekdays! };
-    const nextDue = dueAfterDone(schedule, doneOn);
+    const nextDue = dueAfterDone(scheduleFromColumns(row.chore), row.occurrence.dueOn, doneOn);
     await tx.insert(occurrences).values({ householdId: home.id, choreId: row.chore.id, dueOn: nextDue });
     return { nextDue };
   });
+}
+
+/** Who did a Chore and when, most recent first, with the Effort as it was each time. */
+export async function getHistory(db: Db, userId: string, choreId: string): Promise<Completion[]> {
+  const home = await householdOf(db, userId);
+  const rows = await db
+    .select({ doneBy: occurrences.completedBy, doneAt: occurrences.completedAt, effort: occurrences.effort })
+    .from(occurrences)
+    .where(and(eq(occurrences.choreId, idOf(choreId, "Chore")), eq(occurrences.householdId, home.id), isNotNull(occurrences.completedAt)))
+    .orderBy(desc(occurrences.completedAt));
+  return rows.map((r) => ({ doneBy: r.doneBy, doneAt: r.doneAt!, effort: r.effort ?? 0 }));
 }

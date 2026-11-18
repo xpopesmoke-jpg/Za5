@@ -5,10 +5,8 @@ import { addMember, makeUser } from "@/test/helpers";
 import { createHousehold } from "./households";
 import { addFixture, addFloor, addRoom, getHome, removeFloor, removeRoom } from "./home";
 import { NotFoundError, ValidationError } from "./errors";
-import { eq } from "drizzle-orm";
-import { chores, occurrences } from "@/db/schema";
 import type { Schedule } from "@/domain/schedule";
-import { addChore, completeOccurrence, getToday } from "./chores";
+import { addChore, completeOccurrence, getHistory, getToday } from "./chores";
 
 /** A moment in the home's time zone (Zagreb, UTC+1 in November): "2026-11-17 09:00". */
 const at = (local: string) => new Date(local.replace(" ", "T") + ":00+01:00");
@@ -30,6 +28,12 @@ beforeEach(async () => {
 
 const weekly = { kind: "every", days: 7 } as const;
 
+/** The open Occurrence of the only Chore, looked up on its due day (Thursday 19 Nov). */
+async function getTodayOrLater(userId: string) {
+  const [item] = await getToday(db, userId, at("2026-11-19 07:00"));
+  return item.occurrenceId;
+}
+
 describe("adding a Chore", () => {
   it("makes a new interval Chore due today, on Today's list", async () => {
     await addChore(db, pope, { name: "Clean the bathroom", roomId: bathroom, effort: 20, schedule: weekly }, at("2026-11-17 09:00"));
@@ -50,8 +54,7 @@ describe("marking an Occurrence Done", () => {
     expect(nextDue).toBe("2026-11-24");
     expect(await getToday(db, pope, at("2026-11-23 09:00"))).toEqual([]);
     expect((await getToday(db, pope, at("2026-11-24 09:00"))).map((o) => o.name)).toEqual(["Clean the bathroom"]);
-    const [done] = await db.select().from(occurrences).where(eq(occurrences.id, item.occurrenceId));
-    expect(done).toMatchObject({ completedBy: ana, completedAt: at("2026-11-17 18:30"), effort: 20 });
+    expect(await getHistory(db, pope, item.choreId)).toEqual([{ doneBy: ana, doneAt: at("2026-11-17 18:30"), effort: 20 }]);
   });
 
   it("refuses to mark the same Occurrence Done twice", async () => {
@@ -106,6 +109,22 @@ describe("fixed-days schedules", () => {
     expect((await completeOccurrence(db, pope, thu.occurrenceId, at("2026-11-21 11:00"))).nextDue).toBe("2026-11-23");
   });
 
+  it("keeps one Occurrence when its days pass for weeks without anyone doing it", async () => {
+    await addChore(db, pope, { name: "Take out the bins", effort: 5, schedule: monThu }, at("2026-11-17 09:00"));
+
+    const today = await getToday(db, pope, at("2026-12-10 09:00"));
+
+    expect(today.map((o) => [o.dueOn, o.overdueDays])).toEqual([["2026-11-19", 21]]);
+  });
+
+  it("never makes a fixed-days Chore due again on the same day when it is done early", async () => {
+    await addChore(db, pope, { name: "Take out the bins", effort: 5, schedule: monThu }, at("2026-11-17 09:00"));
+    const due = await getTodayOrLater(pope);
+
+    // Done on Tuesday for Thursday: the next one is the Monday after that Thursday.
+    expect((await completeOccurrence(db, pope, due, at("2026-11-17 20:00"))).nextDue).toBe("2026-11-23");
+  });
+
   it("refuses a fixed-days schedule with no days", async () => {
     await expect(addChore(db, pope, { name: "Bins", effort: 5, schedule: { kind: "weekdays", days: [] } }, at("2026-11-17 09:00"))).rejects.toThrow(
       ValidationError,
@@ -135,6 +154,11 @@ describe("where a Chore goes", () => {
     ]);
   });
 
+  it("answers a made-up id as not found rather than failing", async () => {
+    await expect(addChore(db, pope, { name: "Odd", roomId: "abc", effort: 5, schedule: weekly }, at("2026-11-17 09:00"))).rejects.toThrow(NotFoundError);
+    await expect(completeOccurrence(db, pope, "not-an-id", at("2026-11-17 09:00"))).rejects.toThrow(NotFoundError);
+  });
+
   it("does not let a Member use another home's Room, or touch another home's Occurrences", async () => {
     const zoe = await makeUser(db, "Zoe");
     await createHousehold(db, zoe, "Zoe's flat");
@@ -151,8 +175,8 @@ describe("where a Chore goes", () => {
 
     await removeRoom(db, pope, bathroom);
 
-    const [chore] = await db.select().from(chores).where(eq(chores.id, choreId));
-    expect(chore).toMatchObject({ roomId: null, needsRoom: true });
+    const today = await getToday(db, pope, at("2026-11-17 10:00"));
+    expect(today.map((o) => [o.choreId, o.roomId, o.needsRoom])).toEqual([[choreId, null, true]]);
   });
 });
 
@@ -164,7 +188,7 @@ describe("removing a Floor", () => {
 
     await removeFloor(db, pope, upstairs);
 
-    const [chore] = await db.select().from(chores).where(eq(chores.id, choreId));
-    expect(chore).toMatchObject({ roomId: null, needsRoom: true });
+    const today = await getToday(db, pope, at("2026-11-17 10:00"));
+    expect(today.map((o) => [o.choreId, o.roomId, o.needsRoom])).toEqual([[choreId, null, true]]);
   });
 });

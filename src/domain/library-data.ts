@@ -28,10 +28,10 @@ const WASHER = { rooms: ["laundry"], fixtures: ["washing_machine"] } satisfies P
 
 export const LIBRARY_CHORES: LibraryChore[] = [
   // Kitchen
-  chore("wash-dishes", "Wash the dishes", "Operi suđe", { ...KITCHEN, notWith: ["dishwasher"] }, { every: 1, minutes: 15 }),
-  chore("run-dishwasher", "Run the dishwasher", "Pokreni perilicu suđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
-  chore("empty-dishwasher", "Empty the dishwasher", "Isprazni perilicu suđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
-  chore("dishwasher-filter", "Clean the dishwasher filter", "Očisti filter perilice suđa", { fixtures: ["dishwasher"] }, { every: 30, minutes: 10 }),
+  chore("wash-dishes", "Wash the dishes", "Operi posuđe", { ...KITCHEN, notWith: ["dishwasher"] }, { every: 1, minutes: 15 }),
+  chore("run-dishwasher", "Run the dishwasher", "Pokreni perilicu posuđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
+  chore("empty-dishwasher", "Empty the dishwasher", "Isprazni perilicu posuđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
+  chore("dishwasher-filter", "Clean the dishwasher filter", "Očisti filter perilice posuđa", { fixtures: ["dishwasher"] }, { every: 30, minutes: 10 }),
   chore("wipe-counters", "Wipe the counters", "Obriši radne plohe", { ...KITCHEN, fixtures: [...KITCHEN.fixtures, "counter"] }, { every: 1, minutes: 5 }),
   chore("clean-hob", "Clean the hob", "Očisti ploču za kuhanje", { fixtures: ["hob"] }, { every: 3, minutes: 10 }),
   chore("extractor-filter", "Clean the extractor hood filter", "Očisti filter nape", { fixtures: ["hob"] }, { every: 60, minutes: 15 }),
@@ -55,7 +55,7 @@ export const LIBRARY_CHORES: LibraryChore[] = [
   chore("toilet-brush", "Clean the toilet brush", "Očisti četku za WC", { rooms: ["toilet"], fixtures: ["toilet"] }, { every: 30, minutes: 5 }),
   chore("bathroom-sink", "Clean the basin and taps", "Očisti umivaonik i slavine", BATH, { every: 7, minutes: 5 }),
   chore("wipe-mirror", "Wipe the mirror", "Obriši ogledalo", BATH, { every: 7, minutes: 5 }),
-  chore("clean-shower", "Clean the shower", "Očisti tuš kabinu", { fixtures: ["shower"] }, { every: 7, minutes: 15 }),
+  chore("clean-shower", "Clean the shower", "Očisti tuš-kabinu", { fixtures: ["shower"] }, { every: 7, minutes: 15 }),
   chore("clean-bathtub", "Clean the bathtub", "Očisti kadu", { fixtures: ["bathtub"] }, { every: 7, minutes: 15 }),
   chore("shower-glass", "Wash the shower curtain or wipe the glass", "Operi zavjesu za tuš ili obriši staklo", { fixtures: ["shower", "bathtub"] }, { every: 30, minutes: 10 }),
   chore("descale-shower", "Descale the shower head and taps", "Očisti tuš i slavine od kamenca", { fixtures: ["shower", "bathtub"] }, { every: 30, minutes: 15 }),
@@ -142,10 +142,10 @@ export const LIBRARY_CHORES: LibraryChore[] = [
 
 export const LIBRARY_SUPPLIES: LibrarySupply[] = [
   // Kitchen
-  supply("washing-up-liquid", "Washing-up liquid", "Deterdžent za suđe", KITCHEN),
-  supply("dishwasher-tablets", "Dishwasher tablets", "Tablete za perilicu suđa", { fixtures: ["dishwasher"] }),
-  supply("dishwasher-salt", "Dishwasher salt", "Sol za perilicu suđa", { fixtures: ["dishwasher"] }),
-  supply("rinse-aid", "Rinse aid", "Sjajilo za perilicu suđa", { fixtures: ["dishwasher"] }),
+  supply("washing-up-liquid", "Washing-up liquid", "Deterdžent za posuđe", KITCHEN),
+  supply("dishwasher-tablets", "Dishwasher tablets", "Tablete za perilicu posuđa", { fixtures: ["dishwasher"] }),
+  supply("dishwasher-salt", "Dishwasher salt", "Sol za perilicu posuđa", { fixtures: ["dishwasher"] }),
+  supply("rinse-aid", "Rinse aid", "Sjajilo za perilicu posuđa", { fixtures: ["dishwasher"] }),
   supply("sponges", "Sponges", "Spužvice", KITCHEN),
   supply("bin-bags", "Bin bags", "Vrećice za smeće", KITCHEN),
   supply("kitchen-roll", "Kitchen roll", "Papirnati ručnici", KITCHEN),

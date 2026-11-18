@@ -111,7 +111,10 @@ export const chores = pgTable(
   },
   (t) => [
     index("chores_household_idx").on(t.householdId),
-    check("chores_schedule_shape", sql`(${t.scheduleKind} = 'every' and ${t.everyDays} > 0) or (${t.scheduleKind} = 'weekdays' and cardinality(${t.weekdays}) > 0)`),
+    check(
+      "chores_schedule_shape",
+      sql`(${t.scheduleKind} = 'every' and ${t.everyDays} > 0 and ${t.weekdays} is null) or (${t.scheduleKind} = 'weekdays' and ${t.everyDays} is null and cardinality(${t.weekdays}) > 0 and ${t.weekdays} <@ array[1,2,3,4,5,6,7])`,
+    ),
   ],
 );
 
@@ -130,6 +133,7 @@ export const occurrences = pgTable(
   },
   (t) => [
     index("occurrences_household_due_idx").on(t.householdId, t.dueOn),
+    index("occurrences_chore_idx").on(t.choreId),
     uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null`),
   ],
 );

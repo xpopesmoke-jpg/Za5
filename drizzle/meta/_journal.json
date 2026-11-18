@@ -29,6 +29,13 @@
       "when": 1794962958053,
       "tag": "0003_chores",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794963661776,
+      "tag": "0004_chores_tighten",
+      "breakpoints": true
     }
   ]
 }
