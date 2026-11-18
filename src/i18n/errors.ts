@@ -17,10 +17,18 @@ const HR_EXACT: Record<string, string> = {
   "Fixture wasn't found.": "Element nije pronađen.",
   "Pick a room type.": "Odaberi vrstu prostorije.",
   "Pick a fixture.": "Odaberi element.",
+  "Give the chore a name.": "Daj zadatku ime.",
+  "Pick at least one day of the week.": "Odaberi barem jedan dan u tjednu.",
+  "That fixture is in another room.": "Taj element je u drugoj prostoriji.",
+  "That one is already done.": "To je već gotovo.",
+  "Chore wasn't found.": "Zadatak nije pronađen.",
 };
 
 const HR_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Keep the name under (\d+) characters\.$/, (m) => `Neka ime bude kraće od ${m[1]} znakova.`],
+  [/^Keep the note under (\d+) characters\.$/, (m) => `Neka bilješka bude kraća od ${m[1]} znakova.`],
+  [/^Effort is 1 to (\d+) minutes\.$/, (m) => `Trajanje je od 1 do ${m[1]} minuta.`],
+  [/^Pick how often: every 1 to (\d+) days\.$/, (m) => `Odaberi koliko često: svakih 1 do ${m[1]} dana.`],
 ];
 
 export function localizeError(lang: Lang, message: string): string {

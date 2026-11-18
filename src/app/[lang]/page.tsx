@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getDb } from "@/db/client";
 import { RoomTiles } from "@/components/room-tiles";
+import { TodayList } from "@/components/today-list";
 import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
+import { getToday } from "@/server/chores";
 import { getHome } from "@/server/home";
 import { getCurrentHome } from "@/server/session";
 import { signOut } from "./actions";
@@ -11,7 +13,7 @@ import { signOut } from "./actions";
 export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const lang = langOf((await params).lang);
   const { me, household } = await getCurrentHome();
-  const home = await getHome(getDb(), me.id);
+  const [home, today] = await Promise.all([getHome(getDb(), me.id), getToday(getDb(), me.id, new Date())]);
   const t = DICT[lang];
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
@@ -30,6 +32,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           </Link>
         )}
       </div>
+      <TodayList items={today} lang={lang} />
       <RoomTiles home={home} lang={lang} />
       <form action={signOut}>
         <button type="submit" className="text-[14px] font-medium text-ink-2 underline">

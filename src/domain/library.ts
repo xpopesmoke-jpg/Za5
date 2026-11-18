@@ -1,9 +1,9 @@
 import type { Lang } from "@/i18n/config";
 import type { FixtureType, RoomType } from "@/server/home-types";
 import { LIBRARY_CHORES, LIBRARY_SUPPLIES } from "./library-data";
+import type { Schedule } from "./schedule";
 
-/** When a Chore comes round again: every N days counted from the last completion, or on fixed weekdays (1 = Monday). */
-export type Schedule = { kind: "every"; days: number } | { kind: "weekdays"; days: number[] };
+export type { Schedule };
 
 /**
  * Where a starter-library entry belongs: the Whole home, or any Room that is one of `rooms` or has one of

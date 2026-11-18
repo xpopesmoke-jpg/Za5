@@ -60,7 +60,7 @@ const hr: Shape<typeof en> = {
   },
   fixtureTypes: {
     shower: "Tuš", bathtub: "Kada", toilet: "WC školjka", sink: "Sudoper ili umivaonik", oven: "Pećnica", hob: "Ploča za kuhanje",
-    fridge: "Hladnjak", dishwasher: "Perilica posuđa", washing_machine: "Perilica rublja", dryer: "Sušilica", counter: "Radna ploča", window: "Prozor",
+    fridge: "Hladnjak", dishwasher: "Perilica suđa", washing_machine: "Perilica rublja", dryer: "Sušilica", counter: "Radna ploča", window: "Prozor",
   },
 };
 

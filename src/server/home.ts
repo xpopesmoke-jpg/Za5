@@ -1,6 +1,6 @@
-import { and, asc, count, eq, max } from "drizzle-orm";
+import { and, asc, count, eq, inArray, max } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { fixtures, floors, households, rooms } from "@/db/schema";
+import { chores, fixtures, floors, households, rooms } from "@/db/schema";
 import { FIXTURE_TYPES, ROOM_TYPES, type FixtureType, type RoomType } from "./home-types";
 import { FLOOR_NAME_MAX, ROOM_NAME_MAX } from "@/domain/limits";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
@@ -105,7 +105,11 @@ export async function renameRoom(db: Db, userId: string, roomId: string, input: 
 export async function removeRoom(db: Db, userId: string, roomId: string) {
   const household = await ownersHousehold(db, userId);
   const room = await roomOf(db, household.id, roomId);
-  await db.delete(rooms).where(eq(rooms.id, room.id));
+  await db.transaction(async (tx) => {
+    // Its Chores keep their history and wait in "Needs a new room" (the Room link clears itself on delete).
+    await tx.update(chores).set({ needsRoom: true, fixtureId: null }).where(eq(chores.roomId, room.id));
+    await tx.delete(rooms).where(eq(rooms.id, room.id));
+  });
 }
 
 /** Adds a Fixture at the end of a Room's list. */
@@ -159,6 +163,8 @@ export async function removeFloor(db: Db, userId: string, floorId: string) {
     await tx.select({ id: households.id }).from(households).where(eq(households.id, household.id)).for("update");
     const [{ n }] = await tx.select({ n: count() }).from(floors).where(eq(floors.householdId, household.id));
     if (n <= 1) throw new ValidationError("A home needs at least one floor.");
+    const floorRooms = tx.select({ id: rooms.id }).from(rooms).where(eq(rooms.floorId, floor.id));
+    await tx.update(chores).set({ needsRoom: true, fixtureId: null }).where(inArray(chores.roomId, floorRooms));
     await tx.delete(floors).where(eq(floors.id, floor.id));
   });
 }

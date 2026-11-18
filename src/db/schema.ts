@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 
 export * from "./auth-schema";
@@ -8,6 +8,8 @@ export * from "./auth-schema";
 export const households = pgTable("households", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  // "Today" and due days are counted in the home's own time zone.
+  timeZone: text("time_zone").notNull().default("Europe/Zagreb"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -81,4 +83,53 @@ export const fixtures = pgTable(
     position: integer("position").notNull(),
   },
   (t) => [index("fixtures_room_idx").on(t.roomId)],
+);
+
+export const scheduleKind = pgEnum("schedule_kind", ["every", "weekdays"]);
+
+/**
+ * A repeating job in the home. It sits in a Room, at a Fixture in that Room, or in the Whole home (no Room).
+ * When its Room is removed it keeps its history and waits in "Needs a new room" (needs_room).
+ */
+export const chores = pgTable(
+  "chores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+    roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
+    fixtureId: uuid("fixture_id").references(() => fixtures.id, { onDelete: "set null" }),
+    needsRoom: boolean("needs_room").notNull().default(false),
+    name: text("name").notNull(),
+    note: text("note"),
+    effort: integer("effort").notNull(),
+    scheduleKind: scheduleKind("schedule_kind").notNull(),
+    // every: days counted from the last completion; weekdays: 1 = Monday … 7 = Sunday
+    everyDays: integer("every_days"),
+    weekdays: integer("weekdays").array(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("chores_household_idx").on(t.householdId),
+    check("chores_schedule_shape", sql`(${t.scheduleKind} = 'every' and ${t.everyDays} > 0) or (${t.scheduleKind} = 'weekdays' and cardinality(${t.weekdays}) > 0)`),
+  ],
+);
+
+/** One due instance of a Chore. A Chore has at most one open Occurrence; completed ones are its history. */
+export const occurrences = pgTable(
+  "occurrences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+    choreId: uuid("chore_id").notNull().references(() => chores.id, { onDelete: "cascade" }),
+    dueOn: date("due_on", { mode: "string" }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Kept even if the account goes, so history stays readable; Effort is copied in as it was when done.
+    completedBy: text("completed_by").references(() => user.id, { onDelete: "set null" }),
+    effort: integer("effort"),
+  },
+  (t) => [
+    index("occurrences_household_due_idx").on(t.householdId, t.dueOn),
+    uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null`),
+  ],
 );
