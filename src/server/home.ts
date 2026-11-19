@@ -2,6 +2,7 @@ import { and, asc, count, eq, inArray, max, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { chores, fixtures, floors, households, rooms } from "@/db/schema";
 import { FIXTURE_TYPES, ROOM_TYPES, type FixtureType, type RoomType } from "./home-types";
+import { clockwise, signedArea2, type Outline } from "@/domain/layout";
 import { FLOOR_NAME_MAX, ROOM_NAME_MAX } from "@/domain/limits";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
 import { getMyHousehold } from "./households";
@@ -14,7 +15,7 @@ export type HomeRoom = {
   type: RoomType;
   name: string;
   /** Corners on the Floor in centimetres, or null when the Room has no drawn outline yet */
-  outline: [number, number][] | null;
+  outline: Outline | null;
   fixtures: HomeFixture[];
 };
 export type HomeFloor = { id: string; name: string | null; rooms: HomeRoom[] };
@@ -188,15 +189,23 @@ const OUTLINE_MAX_CM = 10_000;
 
 /**
  * The Owner sets a Room's outline: its corners on the Floor in centimetres. Used by the Plan reader and the
- * "Fix it" editor later, and by the Omiš set-up script now. An outline of fewer than 3 corners clears it.
+ * "Fix it" editor later, and by the Omiš set-up script now. null clears it.
  */
-export async function setRoomOutline(db: Db, userId: string, roomId: string, outline: [number, number][] | null): Promise<void> {
+export async function setRoomOutline(db: Db, userId: string, roomId: string, outline: Outline | null): Promise<void> {
   const household = await ownersHousehold(db, userId);
   const room = await roomOf(db, household.id, roomId);
-  if (outline && outline.length >= 3) {
-    if (outline.length > 64 || outline.some((p) => p.length !== 2 || p.some((v) => !Number.isFinite(v) || v < 0 || v > OUTLINE_MAX_CM))) {
-      throw new ValidationError("That room outline doesn't look right.");
-    }
+  await db.update(rooms).set({ outline: outline === null ? null : checkedOutline(outline) }).where(eq(rooms.id, room.id));
+}
+
+/** A usable outline, stored clockwise: 3 to 64 corners within the home's size, enclosing some floor. */
+function checkedOutline(outline: unknown): Outline {
+  const bad = () => new ValidationError("That room outline doesn't look right.");
+  if (!Array.isArray(outline) || outline.length < 3 || outline.length > 64) throw bad();
+  for (const p of outline) {
+    if (!Array.isArray(p) || p.length !== 2 || p.some((v) => typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > OUTLINE_MAX_CM)) throw bad();
   }
-  await db.update(rooms).set({ outline: outline && outline.length >= 3 ? outline : null }).where(eq(rooms.id, room.id));
+  const poly = outline as Outline;
+  // at least 0.1 m² of floor, so a line or a dot isn't a room
+  if (Math.abs(signedArea2(poly)) / 2 < 1_000) throw bad();
+  return clockwise(poly);
 }

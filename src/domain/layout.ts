@@ -1,8 +1,38 @@
 import type { RoomType } from "@/server/home-types";
 
+/** A Room's outline: its corners on the Floor in centimetres, x to the right and y down, clockwise. */
+export type Outline = [number, number][];
+
+/**
+ * Twice the signed area of an outline (shoelace). With y pointing down, a positive value means the corners go
+ * clockwise on screen.
+ */
+export function signedArea2(poly: Outline): number {
+  let a = 0;
+  poly.forEach(([x1, y1], i) => {
+    const [x2, y2] = poly[(i + 1) % poly.length];
+    a += x1 * y2 - x2 * y1;
+  });
+  return a;
+}
+
+/** The same outline, with its corners clockwise on screen. */
+export const clockwise = (poly: Outline): Outline => (signedArea2(poly) < 0 ? [...poly].reverse() : poly);
+
+/** Whether a point lies inside an outline (ray casting). */
+export function contains(poly: Outline, [x, y]: [number, number]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 /** A Room as the Home map needs it: its type and, if drawn, its outline in centimetres. */
-export type FloorRoom = { id: string; type: RoomType; outline: [number, number][] | null };
-export type LaidOutRoom = { id: string; polygon: [number, number][]; drawn: boolean };
+export type FloorRoom = { id: string; type: RoomType; outline: Outline | null };
+export type LaidOutRoom = { id: string; polygon: Outline; drawn: boolean };
 
 /** Typical floor areas in m², used to size Rooms that have no outline yet. */
 const TYPICAL_M2: Record<RoomType, number> = {

@@ -87,5 +87,36 @@ describe("setting an outline", () => {
 
     await expect(setRoomOutline(db, nina, bath, square)).rejects.toThrow(NotAllowedError);
     await expect(setRoomOutline(db, pope, bath, [[0, 0], [1e9, 0], [5, 5]])).rejects.toThrow(ValidationError);
+    // too few corners, a flat line, and something that isn't a list of points
+    await expect(setRoomOutline(db, pope, bath, [[0, 0], [100, 0]])).rejects.toThrow(ValidationError);
+    await expect(setRoomOutline(db, pope, bath, [[0, 0], [100, 0], [200, 0]])).rejects.toThrow(ValidationError);
+    await expect(setRoomOutline(db, pope, bath, "nonsense" as unknown as [number, number][])).rejects.toThrow(ValidationError);
+  });
+
+  it("keeps every outline clockwise, whichever way it was drawn", async () => {
+    await setRoomOutline(db, pope, bath, [
+      [0, 0],
+      [0, 100],
+      [100, 100],
+      [100, 0],
+    ]);
+
+    expect((await roomOf(bath)).polygon).toEqual([
+      [100, 0],
+      [100, 100],
+      [0, 100],
+      [0, 0],
+    ]);
+  });
+
+  it("clears an outline with null", async () => {
+    await setRoomOutline(db, pope, bath, [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ]);
+    await setRoomOutline(db, pope, bath, null);
+
+    expect((await roomOf(bath)).drawn).toBe(false);
   });
 });

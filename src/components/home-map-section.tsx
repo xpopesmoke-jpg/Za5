@@ -26,14 +26,19 @@ export function HomeMapSection({ map, children }: { map: HomeMap; children: Reac
   const t = useT();
   const [floorIndex, setFloorIndex] = useState(0);
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
-  const floor = map.floors[Math.min(floorIndex, map.floors.length - 1)];
+  const [no3d, setNo3d] = useState(false);
+  const shownFloor = Math.min(floorIndex, map.floors.length - 1);
+  const floor = map.floors[shownFloor];
   const rooms = useMemo(() => floor?.rooms ?? [], [floor]);
   const selectedRoom = filter.kind === "room" ? rooms.find((r) => r.id === filter.id) : undefined;
 
   const onPick = useCallback((id: string | null) => setFilter((f) => (id && !(f.kind === "room" && f.id === id) ? { kind: "room", id } : { kind: "all" })), []);
   const showing = filter.kind === "room" ? selectedRoom?.name : filter.kind === "whole" ? t.chores.wholeHome : null;
   const place = filter.kind === "room" ? filter.id : filter.kind === "whole" ? "whole" : null;
-  const totalDue = map.floors.reduce((s, f) => s + f.rooms.reduce((a, r) => a + r.due, 0), 0) + map.wholeHome.due;
+  const floorDue = rooms.reduce((a, r) => a + r.due, 0);
+  // Picked a place with nothing due: say so, since its list is empty once the rest is hidden.
+  const empty = (filter.kind === "room" && (selectedRoom?.due ?? 0) === 0) || (filter.kind === "whole" && map.wholeHome.due === 0);
+  const onUnavailable = useCallback(() => setNo3d(true), []);
 
   return (
     <>
@@ -44,23 +49,23 @@ export function HomeMapSection({ map, children }: { map: HomeMap; children: Reac
               <button
                 key={f.id}
                 type="button"
-                aria-pressed={i === floorIndex}
+                aria-pressed={i === shownFloor}
                 onClick={() => {
                   setFloorIndex(i);
                   setFilter({ kind: "all" });
                 }}
-                className={chip(i === floorIndex)}
+                className={chip(i === shownFloor)}
               >
                 {f.name ?? t.rooms.floorN(i + 1)}
               </button>
             ))}
           </div>
         )}
-        <div className="relative overflow-hidden rounded-card border-2 border-edge bg-surface">
-          {rooms.length > 0 ? (
-            <HomeMap3D rooms={rooms} selected={filter.kind === "room" ? filter.id : null} onPick={onPick} label={t.home.mapSummary(rooms.length, totalDue)} />
-          ) : (
+        <div className={`relative overflow-hidden rounded-card border-2 border-edge bg-surface ${no3d ? "min-h-16" : ""}`}>
+          {rooms.length === 0 ? (
             <p className="p-6 text-[14px] text-ink-2">{t.rooms.noRooms}</p>
+          ) : (
+            !no3d && <HomeMap3D rooms={rooms} selected={filter.kind === "room" ? filter.id : null} onPick={onPick} onUnavailable={onUnavailable} label={t.home.mapSummary(rooms.length, floorDue)} />
           )}
           {map.wholeHome.due > 0 && (
             <button
@@ -97,6 +102,7 @@ export function HomeMapSection({ map, children }: { map: HomeMap; children: Reac
           </>
         )}
         {children}
+        {empty && <p className="-mt-1 px-1 text-[15px] text-ink-2">{t.home.nothingHere}</p>}
       </div>
     </>
   );
