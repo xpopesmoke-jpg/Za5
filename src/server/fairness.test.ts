@@ -5,6 +5,8 @@ import { addMember, makeUser } from "@/test/helpers";
 import { createHousehold } from "./households";
 import { addChore, completeOccurrence, getToday, skipOccurrence } from "./chores";
 import { getFairness } from "./fairness";
+import { eq } from "drizzle-orm";
+import { members } from "@/db/schema";
 
 const at = (local: string) => new Date(local.replace(" ", "T") + ":00+01:00");
 const daily = { kind: "every", days: 1 } as const;
@@ -62,6 +64,17 @@ describe("the Fairness balance", () => {
     expect(await balance("2026-11-19 09:00")).toEqual([
       ["Pope", 0, true],
       ["Nina", 15, false],
+    ]);
+  });
+
+  it("leaves out someone who has left the home", async () => {
+    const leo = await makeUser(db, "Leo");
+    await addMember(db, homeId, leo);
+    await db.update(members).set({ leftAt: at("2026-11-18 12:00") }).where(eq(members.userId, leo));
+
+    expect(await balance("2026-11-19 09:00")).toEqual([
+      ["Pope", 0, true],
+      ["Nina", 0, false],
     ]);
   });
 

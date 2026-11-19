@@ -10,7 +10,7 @@ export const households = pgTable("households", {
   name: text("name").notNull(),
   // "Today" and due days are counted in the home's own time zone.
   timeZone: text("time_zone").notNull().default("Europe/Zagreb"),
-  // Away: set while the Household is paused (a holiday); nothing becomes overdue meanwhile.
+  // Away: set while the Household is away (a holiday); nothing becomes overdue meanwhile.
   awaySince: timestamp("away_since", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

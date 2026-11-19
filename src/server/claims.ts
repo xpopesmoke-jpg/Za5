@@ -2,26 +2,17 @@ import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { chores, households, occurrences, user } from "@/db/schema";
 import { localDay, type Day } from "@/domain/schedule";
-import { closedReason } from "./chores";
+import { lockOpenOccurrence } from "./chores";
 import { householdOf, idOf } from "./scope";
-import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
+import { NotAllowedError, ValidationError } from "./errors";
 
 export type DoneForYou = { occurrenceId: string; choreName: string; doneByName: string; doneAt: Date };
 
 const holds = (claimedUntil: Day | null, today: Day) => claimedUntil !== null && claimedUntil >= today;
 
 /** Locks one of this Household's open Occurrences for a change to its Claim. */
-async function lockedOpen(tx: Pick<Db, "select">, householdId: string, occurrenceId: string) {
-  const [row] = await tx
-    .select()
-    .from(occurrences)
-    .where(and(eq(occurrences.id, idOf(occurrenceId, "Chore")), eq(occurrences.householdId, householdId)))
-    .for("update");
-  if (!row) throw new NotFoundError("Chore");
-  const closed = closedReason(row);
-  if (closed) throw new ValidationError(closed);
-  return row;
-}
+const lockedOpen = async (tx: Pick<Db, "select">, householdId: string, occurrenceId: string) =>
+  (await lockOpenOccurrence(tx, householdId, occurrenceId)).occurrence;
 
 /**
  * A Member takes an Occurrence from the pool. The Claim holds until the end of its due day, or of today when it

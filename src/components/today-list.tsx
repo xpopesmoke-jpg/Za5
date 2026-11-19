@@ -4,7 +4,7 @@ import { DICT } from "@/i18n/dictionary";
 import type { TodayItem } from "@/server/chores";
 import { claimAction, completeAction, skipAction, unclaimAction, za5Action } from "@/app/[lang]/chores/actions";
 import { localDay } from "@/domain/schedule";
-import { LATER_HOURS } from "@/server/za5";
+import { laterToday } from "@/server/za5";
 
 /** Today's list: what is due and overdue, each with a big round Done. */
 export function TodayList({ items, lang, timeZone, now }: { items: TodayItem[]; lang: Lang; timeZone: string; now: Date }) {
@@ -12,7 +12,7 @@ export function TodayList({ items, lang, timeZone, now }: { items: TodayItem[]; 
   const r = DICT[lang].rooms;
   const today = localDay(now, timeZone);
   // "Later today" only while later still lands today.
-  const laterFits = localDay(new Date(now.getTime() + LATER_HOURS * 3_600_000), timeZone) === today;
+  const laterFits = laterToday(now, timeZone) !== null;
   const clock = new Intl.DateTimeFormat(lang === "hr" ? "hr-HR" : "en-GB", { timeZone, hour: "2-digit", minute: "2-digit" });
   return (
     <section aria-labelledby="today" className="flex flex-col gap-3">

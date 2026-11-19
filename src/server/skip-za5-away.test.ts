@@ -44,6 +44,13 @@ describe("Skip", () => {
     expect((await getFairness(db, pope, at("2026-11-17 10:00"))).map((m) => m.minutes)).toEqual([0, 0]);
   });
 
+  it("moves a fixed-days Chore to its next day, as Done would", async () => {
+    // 2026-11-19 is a Thursday; bins go out Mondays and Thursdays.
+    const { occurrenceId } = await addAndOpen("Take out the bins", "2026-11-19 07:00", { kind: "weekdays", days: [1, 4] }, 5);
+
+    expect((await skipOccurrence(db, nina, occurrenceId, at("2026-11-19 08:00"))).nextDue).toBe("2026-11-23");
+  });
+
   it("cannot be done once Skipped, and cannot be Skipped twice", async () => {
     const { occurrenceId } = await addAndOpen("Water the terrace plants", "2026-11-17 08:00");
     await skipOccurrence(db, nina, occurrenceId, at("2026-11-17 09:00"));
@@ -54,7 +61,7 @@ describe("Skip", () => {
 });
 
 describe("Za5", () => {
-  it("puts it off until later today: still on the list, marked, after the rest, and not overdue", async () => {
+  it("puts it off until later today: still on the list, marked, after the rest, and not overdue meanwhile", async () => {
     const shower = await addAndOpen("Clean the shower", "2026-11-15 08:00");
     await addAndOpen("Take out the bins", "2026-11-17 08:00");
 
@@ -67,19 +74,26 @@ describe("Za5", () => {
     ]);
   });
 
-  it("puts it off until tomorrow, when it is simply due, not overdue", async () => {
+  it("does not forgive lateness: once the Za5 time has passed, it is as late as it really is", async () => {
+    const { occurrenceId } = await addAndOpen("Clean the shower", "2026-11-12 08:00");
+    await za5Occurrence(db, pope, occurrenceId, "later", at("2026-11-17 09:00"));
+
+    expect((await today("2026-11-17 12:30"))[0]).toEqual(["Clean the shower", "2026-11-12", 5, null]);
+  });
+
+  it("puts it off until tomorrow at 07:00, not overdue until then", async () => {
     const { occurrenceId } = await addAndOpen("Clean the shower", "2026-11-17 08:00");
 
     await za5Occurrence(db, nina, occurrenceId, "tomorrow", at("2026-11-17 21:00"));
 
-    expect((await today("2026-11-18 08:00"))[0]).toEqual(["Clean the shower", "2026-11-17", 0, null]);
-    expect((await today("2026-11-19 08:00"))[0]).toEqual(["Clean the shower", "2026-11-17", 1, null]);
+    expect((await today("2026-11-18 06:30"))[0]).toEqual(["Clean the shower", "2026-11-17", 0, at("2026-11-18 07:00").toISOString()]);
+    expect((await today("2026-11-18 08:00"))[0]).toEqual(["Clean the shower", "2026-11-17", 1, null]);
   });
 
-  it("will not put it off till later today when the day is nearly over", async () => {
+  it("makes \"later today\" mean tomorrow morning when the day is nearly over", async () => {
     const { occurrenceId } = await addAndOpen("Clean the shower", "2026-11-17 08:00");
 
-    await expect(za5Occurrence(db, pope, occurrenceId, "later", at("2026-11-17 22:30"))).rejects.toThrow(ValidationError);
+    expect((await za5Occurrence(db, pope, occurrenceId, "later", at("2026-11-17 22:30"))).until).toEqual(at("2026-11-18 07:00"));
   });
 
   it("counts each Member's presses this calendar month", async () => {

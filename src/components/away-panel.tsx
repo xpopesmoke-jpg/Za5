@@ -7,7 +7,7 @@ export function AwayBanner({ since, lang, timeZone }: { since: Date; lang: Lang;
   const t = DICT[lang].chores;
   const day = new Intl.DateTimeFormat(lang === "hr" ? "hr-HR" : "en-GB", { timeZone, day: "numeric", month: "long" }).format(since);
   return (
-    <section role="status" className="flex items-center gap-3 rounded-card border-2 border-edge bg-room-5 p-3">
+    <section aria-label="Away" className="flex items-center gap-3 rounded-card border-2 border-edge bg-room-5 p-3">
       <p className="flex-1 text-[15px] font-bold text-ink">{t.awayBanner(day)}</p>
       <form action={setAwayAction.bind(null, false)}>
         <button type="submit" className="min-h-11 rounded-full border-2 border-edge bg-surface px-4 text-[14px] font-extrabold">

@@ -2,9 +2,8 @@ import { and, count, eq, gte } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { occurrences, za5Presses } from "@/db/schema";
 import { addDays, localDay, zonedTime } from "@/domain/schedule";
-import { closedReason } from "./chores";
-import { NotFoundError, ValidationError } from "./errors";
-import { householdOf, idOf } from "./scope";
+import { lockOpenOccurrence } from "./chores";
+import { householdOf } from "./scope";
 
 /** "Later today" puts it off this long. */
 export const LATER_HOURS = 3;
@@ -18,24 +17,23 @@ export const TOMORROW_HOUR = 7;
  */
 export async function za5Occurrence(db: Db, userId: string, occurrenceId: string, when: "later" | "tomorrow", now: Date): Promise<{ until: Date }> {
   const home = await householdOf(db, userId);
-  const today = localDay(now, home.timeZone);
-  const until =
-    when === "later" ? new Date(now.getTime() + LATER_HOURS * 3_600_000) : zonedTime(addDays(today, 1), TOMORROW_HOUR, 0, home.timeZone);
-  if (when === "later" && localDay(until, home.timeZone) !== today) throw new ValidationError("It's too late for later today. Pick tomorrow.");
+  // "Later today" late in the evening can only mean tomorrow morning.
+  const until = (when === "later" && laterToday(now, home.timeZone)) || tomorrowMorning(now, home.timeZone);
   await db.transaction(async (tx) => {
-    const [o] = await tx
-      .select()
-      .from(occurrences)
-      .where(and(eq(occurrences.id, idOf(occurrenceId, "Chore")), eq(occurrences.householdId, home.id)))
-      .for("update");
-    if (!o) throw new NotFoundError("Chore");
-    const closed = closedReason(o);
-    if (closed) throw new ValidationError(closed);
-    await tx.update(occurrences).set({ postponedUntil: until }).where(eq(occurrences.id, o.id));
-    await tx.insert(za5Presses).values({ householdId: home.id, userId, occurrenceId: o.id, pressedAt: now });
+    const { occurrence } = await lockOpenOccurrence(tx, home.id, occurrenceId);
+    await tx.update(occurrences).set({ postponedUntil: until }).where(eq(occurrences.id, occurrence.id));
+    await tx.insert(za5Presses).values({ householdId: home.id, userId, occurrenceId: occurrence.id, pressedAt: now });
   });
   return { until };
 }
+
+/** When "Later today" would end, if that is still today in the home's time; else null. */
+export function laterToday(now: Date, timeZone: string): Date | null {
+  const until = new Date(now.getTime() + LATER_HOURS * 3_600_000);
+  return localDay(until, timeZone) === localDay(now, timeZone) ? until : null;
+}
+
+const tomorrowMorning = (now: Date, timeZone: string) => zonedTime(addDays(localDay(now, timeZone), 1), TOMORROW_HOUR, 0, timeZone);
 
 /** How many times this Member said Za5 this calendar month (in the home's time). */
 export async function getZa5Count(db: Db, userId: string, now: Date): Promise<number> {
