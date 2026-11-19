@@ -64,6 +64,13 @@
       "when": 1795112729959,
       "tag": "0008_chore_library_key",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795115097382,
+      "tag": "0009_room_outline",
+      "breakpoints": true
     }
   ]
 }

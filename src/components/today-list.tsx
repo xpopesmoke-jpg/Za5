@@ -48,6 +48,7 @@ export function TodayList({ items, lang, timeZone, now }: { items: TodayItem[]; 
             return (
               <li
                 key={item.occurrenceId}
+                data-place={item.needsRoom ? "needs-room" : (item.roomId ?? "whole")}
                 className={`flex items-start gap-3 rounded-card border-2 p-3 ${put ? "border-dashed border-line bg-raised" : "border-edge bg-surface"}`}
               >
                 <form action={completeAction.bind(null, item.occurrenceId)}>

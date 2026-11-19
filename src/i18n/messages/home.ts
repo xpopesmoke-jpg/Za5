@@ -12,6 +12,12 @@ const en = {
   owner: "You're the owner of this home.",
   member: "You're a member of this home.",
   emptyBody: "Your home map and today's chores will appear here.",
+  mapLabel: "Home map",
+  mapSummary: (rooms: number, due: number) => `Your home: ${rooms} ${rooms === 1 ? "room" : "rooms"}, ${due} ${due === 1 ? "chore" : "chores"} today. Tap a room to see its chores.`,
+  floors: "Floors",
+  pickRoom: "Show the chores of one room",
+  showing: (place: string) => `Showing: ${place}`,
+  showAll: "Show all",
 };
 
 const hr: Shape<typeof en> = {
@@ -25,6 +31,12 @@ const hr: Shape<typeof en> = {
   owner: "Ti si vlasnik ovog doma.",
   member: "Ti si član ovog doma.",
   emptyBody: "Ovdje će se pojaviti karta doma i današnji poslovi.",
+  mapLabel: "Karta doma",
+  mapSummary: (rooms: number, due: number) => `Tvoj dom: prostorija ${rooms}, poslova danas ${due}. Dodirni prostoriju za njezine poslove.`,
+  floors: "Katovi",
+  pickRoom: "Prikaži poslove jedne prostorije",
+  showing: (place: string) => `Prikazano: ${place}`,
+  showAll: "Prikaži sve",
 };
 
 const messages = { en, hr };

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 
 export * from "./auth-schema";
@@ -70,6 +70,9 @@ export const rooms = pgTable(
     type: roomType("type").notNull(),
     name: text("name").notNull(),
     position: integer("position").notNull(),
+    // The Room's outline on its Floor, in centimetres ([x, y] corners, clockwise). Empty until read from the
+    // Plan or drawn; the Home map lays such Rooms out on its own meanwhile.
+    outline: jsonb("outline").$type<[number, number][]>(),
   },
   (t) => [index("rooms_floor_idx").on(t.floorId)],
 );

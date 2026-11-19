@@ -4,7 +4,7 @@ import type { Lang } from "@/i18n/config";
 import { DICT } from "@/i18n/dictionary";
 import type { RoomType } from "@/server/home-types";
 
-/** Each kind of room keeps its own candy colour, the same one it has on the Home map. */
+/** Each kind of room keeps its own candy colour, the same one it has on the Home map (see room-colours.ts). */
 const ROOM_COLOUR: Record<RoomType, string> = {
   kitchen: "bg-room-2", living: "bg-room-1", dining: "bg-room-2", bedroom: "bg-room-3", kids: "bg-room-4",
   bathroom: "bg-room-5", toilet: "bg-room-5", hall: "bg-room-2", laundry: "bg-room-5", office: "bg-room-1",

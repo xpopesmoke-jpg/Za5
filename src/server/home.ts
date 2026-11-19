@@ -9,7 +9,14 @@ import { getMyHousehold } from "./households";
 export type { FixtureType, RoomType };
 
 export type HomeFixture = { id: string; type: FixtureType };
-export type HomeRoom = { id: string; type: RoomType; name: string; fixtures: HomeFixture[] };
+export type HomeRoom = {
+  id: string;
+  type: RoomType;
+  name: string;
+  /** Corners on the Floor in centimetres, or null when the Room has no drawn outline yet */
+  outline: [number, number][] | null;
+  fixtures: HomeFixture[];
+};
 export type HomeFloor = { id: string; name: string | null; rooms: HomeRoom[] };
 export type Home = { householdId: string; canEdit: boolean; floors: HomeFloor[] };
 
@@ -37,6 +44,7 @@ export async function getHome(db: Db, userId: string): Promise<Home> {
           id: r.id,
           type: r.type,
           name: r.name,
+          outline: r.outline ?? null,
           fixtures: fixtureRows.filter((x) => x.roomId === r.id).map((x) => ({ id: x.id, type: x.type })),
         })),
     })),
@@ -173,4 +181,22 @@ export async function removeFloor(db: Db, userId: string, floorId: string) {
     await moveChoresToNeedsRoom(tx, inArray(chores.roomId, tx.select({ id: rooms.id }).from(rooms).where(eq(rooms.floorId, floor.id))));
     await tx.delete(floors).where(eq(floors.id, floor.id));
   });
+}
+
+/** Largest home side the outline accepts, in centimetres (a 100 m wide flat is not a flat). */
+const OUTLINE_MAX_CM = 10_000;
+
+/**
+ * The Owner sets a Room's outline: its corners on the Floor in centimetres. Used by the Plan reader and the
+ * "Fix it" editor later, and by the Omiš set-up script now. An outline of fewer than 3 corners clears it.
+ */
+export async function setRoomOutline(db: Db, userId: string, roomId: string, outline: [number, number][] | null): Promise<void> {
+  const household = await ownersHousehold(db, userId);
+  const room = await roomOf(db, household.id, roomId);
+  if (outline && outline.length >= 3) {
+    if (outline.length > 64 || outline.some((p) => p.length !== 2 || p.some((v) => !Number.isFinite(v) || v < 0 || v > OUTLINE_MAX_CM))) {
+      throw new ValidationError("That room outline doesn't look right.");
+    }
+  }
+  await db.update(rooms).set({ outline: outline && outline.length >= 3 ? outline : null }).where(eq(rooms.id, room.id));
 }

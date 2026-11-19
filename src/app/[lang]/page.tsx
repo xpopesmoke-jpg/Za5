@@ -5,6 +5,7 @@ import { AwayBanner, GoAway } from "@/components/away-panel";
 import { Balance } from "@/components/balance";
 import { DoneForYouNotes } from "@/components/done-for-you";
 import { InvitePanel } from "@/components/invite-panel";
+import { HomeMapSection } from "@/components/home-map-section";
 import { TodayList } from "@/components/today-list";
 import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
@@ -12,6 +13,7 @@ import { langOf } from "@/i18n/server";
 import { getToday, hasAnyChore } from "@/server/chores";
 import { getDoneForYou } from "@/server/claims";
 import { getFairness } from "@/server/fairness";
+import { getHomeMap } from "@/server/home-map";
 import { getZa5Count } from "@/server/za5";
 import { getHome } from "@/server/home";
 import { getCurrentHome } from "@/server/session";
@@ -22,13 +24,14 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const { me, household } = await getCurrentHome();
   const now = new Date();
   const db = getDb();
-  const [home, today, doneForYou, balance, za5Count, hasChores] = await Promise.all([
+  const [home, today, doneForYou, balance, za5Count, hasChores, map] = await Promise.all([
     getHome(db, me.id),
     getToday(db, me.id, now),
     getDoneForYou(db, me.id),
     getFairness(db, me.id, now),
     getZa5Count(db, me.id, now),
     hasAnyChore(db, me.id),
+    getHomeMap(db, me.id, now),
   ]);
   const t = DICT[lang];
   const hasRooms = home.floors.some((f) => f.rooms.length > 0);
@@ -60,7 +63,9 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           </Link>
         </section>
       )}
-      <TodayList items={today} lang={lang} timeZone={household.timeZone} now={now} />
+      <HomeMapSection map={map}>
+        <TodayList items={today} lang={lang} timeZone={household.timeZone} now={now} />
+      </HomeMapSection>
       <Balance rows={balance} za5Count={za5Count} lang={lang} />
       <RoomTiles home={home} lang={lang} />
       {home.canEdit && hasRooms && hasChores && (
