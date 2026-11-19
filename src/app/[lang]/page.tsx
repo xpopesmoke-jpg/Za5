@@ -9,7 +9,7 @@ import { TodayList } from "@/components/today-list";
 import { LanguageSwitch } from "@/components/language-switch";
 import { DICT } from "@/i18n/dictionary";
 import { langOf } from "@/i18n/server";
-import { getToday } from "@/server/chores";
+import { getToday, hasAnyChore } from "@/server/chores";
 import { getDoneForYou } from "@/server/claims";
 import { getFairness } from "@/server/fairness";
 import { getZa5Count } from "@/server/za5";
@@ -30,6 +30,8 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
     getZa5Count(db, me.id, now),
   ]);
   const t = DICT[lang];
+  const hasRooms = home.floors.some((f) => f.rooms.length > 0);
+  const hasChores = await hasAnyChore(db, me.id);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
       <header className="flex items-center justify-between">
@@ -49,6 +51,15 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       </div>
       {household.awaySince && <AwayBanner since={household.awaySince} lang={lang} timeZone={household.timeZone} />}
       <DoneForYouNotes notes={doneForYou} lang={lang} />
+      {home.canEdit && hasRooms && !hasChores && (
+        <section aria-labelledby="setup" className="flex flex-col gap-2 rounded-card border-2 border-edge bg-za5 p-4 text-za5-ink">
+          <h2 id="setup" className="text-[22px]">{t.setup.startTitle}</h2>
+          <p className="text-[14px]">{t.setup.startBody}</p>
+          <Link href="/setup" className="mt-1 flex min-h-12 items-center justify-center rounded-full border-2 border-edge bg-surface text-[16px] font-extrabold text-ink">
+            {t.setup.start}
+          </Link>
+        </section>
+      )}
       <TodayList items={today} lang={lang} timeZone={household.timeZone} now={now} />
       <Balance rows={balance} za5Count={za5Count} lang={lang} />
       <RoomTiles home={home} lang={lang} />

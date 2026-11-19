@@ -110,6 +110,8 @@ export const chores = pgTable(
     weekdays: integer("weekdays").array(),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    // The starter-library entry it came from, if any, so a walkthrough reopened later knows it is already there.
+    libraryKey: text("library_key"),
   },
   (t) => [
     index("chores_household_idx").on(t.householdId),

@@ -18,6 +18,8 @@ export type NewChore = {
   /** Effort in minutes */
   effort: number;
   schedule: Schedule;
+  /** The starter-library entry it came from (set by the walkthrough) */
+  libraryKey?: string | null;
 };
 
 export type TodayItem = {
@@ -113,7 +115,16 @@ export async function addChore(db: Db, userId: string, input: NewChore, now: Dat
     const place = await checkedPlace(tx, home.id, input);
     const [chore] = await tx
       .insert(chores)
-      .values({ householdId: home.id, ...place, name, note, effort: input.effort, ...scheduleToColumns(schedule), createdBy: userId })
+      .values({
+        householdId: home.id,
+        ...place,
+        name,
+        note,
+        effort: input.effort,
+        ...scheduleToColumns(schedule),
+        createdBy: userId,
+        libraryKey: input.libraryKey ?? null,
+      })
       .returning({ id: chores.id });
     await tx.insert(occurrences).values({ householdId: home.id, choreId: chore.id, dueOn: firstDue(schedule, localDay(now, home.timeZone)) });
     return chore.id;
@@ -213,4 +224,11 @@ export async function getHistory(db: Db, userId: string, choreId: string): Promi
     .where(and(eq(occurrences.choreId, idOf(choreId, "Chore")), eq(occurrences.householdId, home.id), isNotNull(occurrences.completedAt)))
     .orderBy(desc(occurrences.completedAt));
   return rows.map((r) => ({ doneBy: r.doneBy, doneAt: r.doneAt!, effort: r.effort ?? 0 }));
+}
+
+/** Whether the Household has any Chore yet (the home screen offers the walkthrough until it does). */
+export async function hasAnyChore(db: Db, userId: string): Promise<boolean> {
+  const home = await householdOf(db, userId);
+  const [row] = await db.select({ id: chores.id }).from(chores).where(eq(chores.householdId, home.id)).limit(1);
+  return Boolean(row);
 }

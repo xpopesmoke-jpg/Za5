@@ -6,11 +6,21 @@ import type { Schedule } from "./schedule";
 export type { Schedule };
 
 /**
- * Where a starter-library entry belongs: the Whole home, or any Room that is one of `rooms` or has one of
- * `fixtures`, unless it has one of `notWith`. Matching on Fixtures lets a "Living + kitchen" with a hob get the
- * kitchen Chores; `notWith` keeps "Wash the dishes" away from a kitchen with a dishwasher.
+ * Where a starter-library entry belongs: the Whole home, or any Room that is one of `rooms` (or counts as one,
+ * `via` a Fixture) or has one of `fixtures`, unless it has one of `notWith`. `via` lets a "Living + kitchen" with
+ * a hob get the kitchen Chores without tying them to the hob; `notWith` keeps "Wash the dishes" away from a
+ * kitchen with a dishwasher.
  */
-export type Placement = "whole" | { rooms?: RoomType[]; fixtures?: FixtureType[]; notWith?: FixtureType[] };
+export type Placement =
+  | "whole"
+  | {
+      rooms?: RoomType[];
+      /** Fixtures that make any Room count as one of `rooms` (a hob makes a "Living + kitchen" a kitchen) */
+      via?: FixtureType[];
+      /** Fixtures the entry belongs to (Clean the hob → the hob) */
+      fixtures?: FixtureType[];
+      notWith?: FixtureType[];
+    };
 
 type LibraryEntry = {
   key: string;
@@ -44,6 +54,7 @@ function fit(placement: Placement, room: HomeRoom): { fixture: FixtureType | nul
   if (placement === "whole") return null;
   if (placement.notWith?.some((f) => room.fixtures.includes(f))) return null;
   if (placement.rooms?.includes(room.type)) return { fixture: null };
+  if (placement.via?.some((f) => room.fixtures.includes(f))) return { fixture: null };
   const fixture = placement.fixtures?.find((f) => room.fixtures.includes(f));
   return fixture ? { fixture } : null;
 }

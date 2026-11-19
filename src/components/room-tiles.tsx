@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Home } from "@/server/home";
 import type { Lang } from "@/i18n/config";
 import { DICT } from "@/i18n/dictionary";
@@ -28,15 +29,30 @@ export function RoomTiles({ home, lang }: { home: Home; lang: Lang }) {
             </p>
           ) : (
             <ul className="grid grid-cols-2 gap-2">
-              {floor.rooms.map((room) => (
-                <li key={room.id} className={`flex min-h-20 flex-col justify-between rounded-card border-2 border-edge p-3 ${ROOM_COLOUR[room.type]}`}>
-                  <span className="font-display text-[17px] font-extrabold leading-tight">{room.name}</span>
-                  <span className="text-[12px] font-semibold text-ink">
-                    {room.name !== t.roomTypes[room.type] ? `${t.roomTypes[room.type]} · ` : ""}
-                    {t.fixturesCount(room.fixtures.length)}
-                  </span>
-                </li>
-              ))}
+              {floor.rooms.map((room) => {
+                const body = (
+                  <>
+                    <span className="font-display text-[17px] font-extrabold leading-tight">{room.name}</span>
+                    <span className="text-[12px] font-semibold text-ink">
+                      {room.name !== t.roomTypes[room.type] ? `${t.roomTypes[room.type]}, ` : ""}
+                      {t.fixturesCount(room.fixtures.length)}
+                    </span>
+                  </>
+                );
+                const tile = `flex min-h-20 flex-col justify-between rounded-card border-2 border-edge p-3 ${ROOM_COLOUR[room.type]}`;
+                return (
+                  <li key={room.id}>
+                    {/* The Owner reopens a Room's suggested chores from its tile. */}
+                    {home.canEdit ? (
+                      <Link href={`/setup/${room.id}`} aria-label={`${room.name}: ${DICT[lang].setup.suggestionsFor}`} className={`${tile} h-full`}>
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className={`${tile} h-full`}>{body}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -60,6 +60,10 @@ _Avoid_: Task, job, to-do
 One due instance of a Chore, such as "Clean bathroom, this Saturday"; it is what a Member claims and completes.
 _Avoid_: Task, instance
 
+**Walkthrough**:
+The Owner's room-by-room pass through the home, Whole home last, keeping, changing or dropping the starter library's suggested Chores and adding ones it missed; it can be reopened for a Room later.
+_Avoid_: Wizard, onboarding
+
 **Routine**:
 A named bundle of Chores done together, such as "Sunday reset".
 _Avoid_: Checklist, program

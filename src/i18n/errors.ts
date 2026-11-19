@@ -26,6 +26,7 @@ const HR_EXACT: Record<string, string> = {
   "Someone else has already claimed this.": "Netko drugi je to već preuzeo.",
   "Only the person who claimed it can let it go.": "Samo onaj tko je to preuzeo može to vratiti.",
   "Only the owner can invite people.": "Samo vlasnik može pozivati ljude.",
+  "Only the owner can set up chores room by room.": "Samo vlasnik može postaviti poslove po prostorijama.",
   "This invite link has been used or has run out. Ask for a new one.": "Ova poveznica je već iskorištena ili je istekla. Zatraži novu.",
 };
 

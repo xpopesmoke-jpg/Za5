@@ -158,3 +158,13 @@ describe("matching that stays sensible", () => {
     expect(byKey["wipe-mirror"]).toBeNull();
   });
 });
+
+describe("Fixtures that only say what a room is", () => {
+  it("does not tie a kitchen Chore to the hob just because the hob makes a living room a kitchen", () => {
+    const byKey = Object.fromEntries(suggest([{ id: "lk", type: "living", fixtures: ["hob"] }]).chores.map((s) => [s.chore.key, s.fixture]));
+
+    expect(byKey["wash-dishes"]).toBeNull();
+    expect(byKey["wipe-counters"]).toBeNull();
+    expect(byKey["clean-hob"]).toBe("hob");
+  });
+});

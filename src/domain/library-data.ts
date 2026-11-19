@@ -19,7 +19,7 @@ const supply = (key: string, en: string, hr: string, placement: Placement): Libr
 
 // A Room counts as a kitchen when it is one, or when it has a hob or an oven ("Living + kitchen").
 // (A fridge or dishwasher alone does not: a fridge in the storage room is still a storage room.)
-const KITCHEN = { rooms: ["kitchen"], fixtures: ["hob", "oven"] } satisfies Placement;
+const KITCHEN = { rooms: ["kitchen"], via: ["hob", "oven"] } satisfies Placement;
 const BATH: Placement = { rooms: ["bathroom", "toilet"] };
 const SLEEP: Placement = { rooms: ["bedroom", "kids"] };
 const DRY_ROOMS: RoomType[] = ["bedroom", "kids", "living", "dining", "office"];
@@ -32,7 +32,7 @@ export const LIBRARY_CHORES: LibraryChore[] = [
   chore("run-dishwasher", "Run the dishwasher", "Pokreni perilicu posuđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
   chore("empty-dishwasher", "Empty the dishwasher", "Isprazni perilicu posuđa", { fixtures: ["dishwasher"] }, { every: 1, minutes: 5 }),
   chore("dishwasher-filter", "Clean the dishwasher filter", "Očisti filter perilice posuđa", { fixtures: ["dishwasher"] }, { every: 30, minutes: 10 }),
-  chore("wipe-counters", "Wipe the counters", "Obriši radne plohe", { ...KITCHEN, fixtures: [...KITCHEN.fixtures, "counter"] }, { every: 1, minutes: 5 }),
+  chore("wipe-counters", "Wipe the counters", "Obriši radne plohe", { ...KITCHEN, via: [...KITCHEN.via, "counter"] }, { every: 1, minutes: 5 }),
   chore("clean-hob", "Clean the hob", "Očisti ploču za kuhanje", { fixtures: ["hob"] }, { every: 3, minutes: 10 }),
   chore("extractor-filter", "Clean the extractor hood filter", "Očisti filter nape", { fixtures: ["hob"] }, { every: 60, minutes: 15 }),
   chore("clean-oven", "Clean the oven", "Očisti pećnicu", { fixtures: ["oven"] }, { every: 30, minutes: 40 }),
@@ -48,7 +48,7 @@ export const LIBRARY_CHORES: LibraryChore[] = [
   chore("descale-kettle", "Descale the kettle", "Očisti kuhalo za vodu od kamenca", KITCHEN, { every: 30, minutes: 5 }),
   chore("descale-coffee", "Descale the coffee machine", "Očisti aparat za kavu od kamenca", KITCHEN, { every: 60, minutes: 10 }),
   chore("tidy-pantry", "Tidy the food cupboard and check dates", "Pospremi smočnicu i provjeri rokove trajanja", KITCHEN, { every: 60, minutes: 20 }),
-  chore("wipe-table", "Wipe the dining table", "Obriši blagovaonski stol", { rooms: ["dining", "kitchen"], fixtures: ["hob"] }, { every: 1, minutes: 2 }),
+  chore("wipe-table", "Wipe the dining table", "Obriši blagovaonski stol", { rooms: ["dining", "kitchen"], via: ["hob"] }, { every: 1, minutes: 2 }),
 
   // Bathroom and toilet
   chore("clean-toilet", "Clean the toilet", "Očisti WC školjku", { rooms: ["toilet"], fixtures: ["toilet"] }, { every: 7, minutes: 10 }),

@@ -7,3 +7,5 @@ export const CHORE_NAME_MAX = 80;
 export const CHORE_NOTE_MAX = 500;
 export const EFFORT_MAX = 240;
 export const EVERY_DAYS_MAX = 365;
+/** Blank rows for "anything we missed?" on each walkthrough step. */
+export const SETUP_EXTRA_ROWS = 3;
