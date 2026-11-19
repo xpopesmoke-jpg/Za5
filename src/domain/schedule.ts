@@ -11,6 +11,21 @@ export function localDay(now: Date, timeZone: string): Day {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
+/** The moment that is `hour:minute` on `day` in the given time zone (DST-safe). */
+export function zonedTime(day: Day, hour: number, minute: number, timeZone: string): Date {
+  const [y, m, d] = day.split("-").map(Number);
+  const wanted = Date.UTC(y, m - 1, d, hour, minute);
+  let guess = wanted;
+  // Twice: once to learn the zone's offset, once more in case that offset changes across the guess (DST).
+  for (let i = 0; i < 2; i++) {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date(guess));
+    const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+    const shown = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
+    guess += wanted - shown;
+  }
+  return new Date(guess);
+}
+
 const asUtc = (day: Day) => new Date(`${day}T00:00:00Z`);
 
 export function addDays(day: Day, n: number): Day {

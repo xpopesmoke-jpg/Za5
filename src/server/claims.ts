@@ -2,6 +2,7 @@ import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { chores, households, occurrences, user } from "@/db/schema";
 import { localDay, type Day } from "@/domain/schedule";
+import { closedReason } from "./chores";
 import { householdOf, idOf } from "./scope";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
 
@@ -17,7 +18,8 @@ async function lockedOpen(tx: Pick<Db, "select">, householdId: string, occurrenc
     .where(and(eq(occurrences.id, idOf(occurrenceId, "Chore")), eq(occurrences.householdId, householdId)))
     .for("update");
   if (!row) throw new NotFoundError("Chore");
-  if (row.completedAt) throw new ValidationError("That one is already done.");
+  const closed = closedReason(row);
+  if (closed) throw new ValidationError(closed);
   return row;
 }
 

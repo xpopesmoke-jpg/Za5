@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import type { Schedule } from "@/domain/schedule";
 import { requestLang } from "@/i18n/server";
-import { addChore, completeOccurrence } from "@/server/chores";
+import { addChore, completeOccurrence, skipOccurrence } from "@/server/chores";
+import { setAway } from "@/server/away";
+import { za5Occurrence } from "@/server/za5";
 import { claimOccurrence, dismissDoneForYou, unclaimOccurrence } from "@/server/claims";
 import { NotAllowedError, NotFoundError, ValidationError } from "@/server/errors";
 import { getCurrentUser } from "@/server/session";
@@ -73,4 +75,16 @@ export async function addChoreAction(_prev: ActionResult, form: FormData): Promi
   revalidatePath("/", "layout");
   // The proxy keeps the person in their language.
   redirect("/");
+}
+
+export async function skipAction(occurrenceId: string): Promise<void> {
+  await quietly((me) => skipOccurrence(getDb(), me, occurrenceId, new Date()));
+}
+
+export async function za5Action(occurrenceId: string, when: "later" | "tomorrow"): Promise<void> {
+  await quietly((me) => za5Occurrence(getDb(), me, occurrenceId, when === "later" ? "later" : "tomorrow", new Date()));
+}
+
+export async function setAwayAction(away: boolean): Promise<void> {
+  await quietly((me) => setAway(getDb(), me, away, new Date()));
 }

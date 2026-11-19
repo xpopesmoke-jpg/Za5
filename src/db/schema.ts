@@ -10,6 +10,8 @@ export const households = pgTable("households", {
   name: text("name").notNull(),
   // "Today" and due days are counted in the home's own time zone.
   timeZone: text("time_zone").notNull().default("Europe/Zagreb"),
+  // Away: set while the Household is paused (a holiday); nothing becomes overdue meanwhile.
+  awaySince: timestamp("away_since", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -135,12 +137,18 @@ export const occurrences = pgTable(
     claimedUntil: date("claimed_until", { mode: "string" }),
     // When the claimer saw "Ana did this for you" and put it away.
     claimNoteSeenAt: timestamp("claim_note_seen_at", { withTimezone: true }),
+    // Za5: put off until this moment (later today, or tomorrow morning); not overdue meanwhile.
+    postponedUntil: timestamp("postponed_until", { withTimezone: true }),
+    // Skip: dropped this time, with no credit.
+    skippedAt: timestamp("skipped_at", { withTimezone: true }),
+    skippedBy: text("skipped_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
     index("occurrences_household_due_idx").on(t.householdId, t.dueOn),
     index("occurrences_chore_idx").on(t.choreId),
     index("occurrences_claimed_by_idx").on(t.claimedBy),
-    uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null`),
+    // Open means neither done nor Skipped.
+    uniqueIndex("occurrences_one_open_per_chore").on(t.choreId).where(sql`${t.completedAt} is null and ${t.skippedAt} is null`),
   ],
 );
 
@@ -155,3 +163,16 @@ export const invites = pgTable("invites", {
   usedAt: timestamp("used_at", { withTimezone: true }),
   usedBy: text("used_by").references(() => user.id, { onDelete: "set null" }),
 });
+
+/** Each press of Za5, for the Member's playful monthly count. */
+export const za5Presses = pgTable(
+  "za5_presses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    occurrenceId: uuid("occurrence_id").references(() => occurrences.id, { onDelete: "set null" }),
+    pressedAt: timestamp("pressed_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("za5_presses_user_idx").on(t.userId, t.pressedAt)],
+);

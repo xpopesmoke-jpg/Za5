@@ -50,6 +50,13 @@
       "when": 1794990082134,
       "tag": "0006_claims_index",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795050382218,
+      "tag": "0007_skip_za5_away",
+      "breakpoints": true
     }
   ]
 }

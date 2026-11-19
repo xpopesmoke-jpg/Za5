@@ -21,6 +21,8 @@ const HR_EXACT: Record<string, string> = {
   "Pick at least one day of the week.": "Odaberi barem jedan dan u tjednu.",
   "That fixture is in another room.": "Taj element je u drugoj prostoriji.",
   "That one is already done.": "To je već gotovo.",
+  "That one was skipped.": "To je preskočeno.",
+  "It's too late for later today. Pick tomorrow.": "Prekasno je za kasnije danas. Odaberi sutra.",
   "Chore wasn't found.": "Zadatak nije pronađen.",
   "Someone else has already claimed this.": "Netko drugi je to već preuzeo.",
   "Only the person who claimed it can let it go.": "Samo onaj tko je to preuzeo može to vratiti.",

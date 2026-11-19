@@ -34,9 +34,21 @@ export type TodayItem = {
   dueOn: Day;
   /** 0 when due today */
   overdueDays: number;
+  /** Za5: put off until this moment, while that is still ahead (then shown after the rest, and not overdue) */
+  postponedUntil: Date | null;
   /** Who has claimed it, while the Claim holds */
   claim: { by: string; name: string; mine: boolean } | null;
 };
+
+/** An Occurrence is open while it is neither done nor Skipped. */
+export const isOpen = () => and(isNull(occurrences.completedAt), isNull(occurrences.skippedAt));
+
+/** Why a closed Occurrence can't be acted on any more. */
+export function closedReason(o: { completedAt: Date | null; skippedAt: Date | null }): string | null {
+  if (o.completedAt) return "That one is already done.";
+  if (o.skippedAt) return "That one was skipped.";
+  return null;
+}
 
 export type Completion = { doneBy: string | null; doneAt: Date; effort: number };
 
@@ -126,6 +138,7 @@ export async function getToday(db: Db, userId: string, now: Date): Promise<Today
       needsRoom: chores.needsRoom,
       fixtureType: fixtures.type,
       dueOn: occurrences.dueOn,
+      postponedUntil: occurrences.postponedUntil,
       claimedBy: claimer.id,
       claimerName: claimer.name,
     })
@@ -134,22 +147,33 @@ export async function getToday(db: Db, userId: string, now: Date): Promise<Today
     .leftJoin(rooms, eq(rooms.id, chores.roomId))
     .leftJoin(fixtures, eq(fixtures.id, chores.fixtureId))
     .leftJoin(claimer, and(eq(claimer.id, occurrences.claimedBy), gte(occurrences.claimedUntil, today)))
-    .where(and(eq(occurrences.householdId, home.id), isNull(occurrences.completedAt), lte(occurrences.dueOn, today)))
+    .where(and(eq(occurrences.householdId, home.id), isOpen(), lte(occurrences.dueOn, today)))
     .orderBy(asc(occurrences.dueOn), asc(chores.createdAt));
-  return rows.map(({ claimedBy, claimerName, ...r }) => ({
-    ...r,
-    overdueDays: daysBetween(r.dueOn, today),
-    claim: claimedBy ? { by: claimedBy, name: claimerName ?? "", mine: claimedBy === userId } : null,
-  }));
+  // While Away, lateness stops growing at the day Away began.
+  const lateUntil = home.awaySince && localDay(home.awaySince, home.timeZone) < today ? localDay(home.awaySince, home.timeZone) : today;
+  const items = rows.map(({ claimedBy, claimerName, postponedUntil, ...r }) => {
+    const postponed = postponedUntil && postponedUntil > now ? postponedUntil : null;
+    // A Za5 moves the day it counts as due to the day it was put off to: done then, it was never late.
+    const za5Day = postponedUntil ? localDay(postponedUntil, home.timeZone) : null;
+    const countsFrom = za5Day && za5Day > r.dueOn ? za5Day : r.dueOn;
+    return {
+      ...r,
+      postponedUntil: postponed,
+      overdueDays: postponed ? 0 : Math.max(0, daysBetween(countsFrom, lateUntil)),
+      claim: claimedBy ? { by: claimedBy, name: claimerName ?? "", mine: claimedBy === userId } : null,
+    };
+  });
+  // Put-off ones go last; the rest stay oldest first.
+  return [...items.filter((i) => !i.postponedUntil), ...items.filter((i) => i.postponedUntil)];
 }
 
 /**
- * Marks an Occurrence Done: credits the Member who did it, keeps the Effort as it was, and opens the next
- * Occurrence, so a Chore never has more than one open.
+ * Closes an Occurrence, Done or Skipped, and opens the next one, so a Chore never has more than one open.
+ * Done credits the Member who did it and keeps the Effort as it was; Skip credits no one.
  */
-export async function completeOccurrence(db: Db, userId: string, occurrenceId: string, now: Date): Promise<{ nextDue: Day }> {
+async function close(db: Db, userId: string, occurrenceId: string, now: Date, how: "done" | "skipped"): Promise<{ nextDue: Day }> {
   const home = await householdOf(db, userId);
-  const doneOn = localDay(now, home.timeZone);
+  const closedOn = localDay(now, home.timeZone);
   return db.transaction(async (tx) => {
     const [row] = await tx
       .select({ occurrence: occurrences, chore: chores })
@@ -158,13 +182,23 @@ export async function completeOccurrence(db: Db, userId: string, occurrenceId: s
       .where(and(eq(occurrences.id, idOf(occurrenceId, "Chore")), eq(occurrences.householdId, home.id)))
       .for("update", { of: occurrences });
     if (!row) throw new NotFoundError("Chore");
-    if (row.occurrence.completedAt) throw new ValidationError("That one is already done.");
-    await tx.update(occurrences).set({ completedAt: now, completedBy: userId, effort: row.chore.effort }).where(eq(occurrences.id, occurrenceId));
-    const nextDue = dueAfterDone(scheduleFromColumns(row.chore), row.occurrence.dueOn, doneOn);
+    const closed = closedReason(row.occurrence);
+    if (closed) throw new ValidationError(closed);
+    await tx
+      .update(occurrences)
+      .set(how === "done" ? { completedAt: now, completedBy: userId, effort: row.chore.effort } : { skippedAt: now, skippedBy: userId })
+      .where(eq(occurrences.id, occurrenceId));
+    const nextDue = dueAfterDone(scheduleFromColumns(row.chore), row.occurrence.dueOn, closedOn);
     await tx.insert(occurrences).values({ householdId: home.id, choreId: row.chore.id, dueOn: nextDue });
     return { nextDue };
   });
 }
+
+/** Marks an Occurrence Done: the Member who did it gets the credit. */
+export const completeOccurrence = (db: Db, userId: string, occurrenceId: string, now: Date) => close(db, userId, occurrenceId, now, "done");
+
+/** Skips an Occurrence that isn't needed this time: no credit, and the next one comes as normal. */
+export const skipOccurrence = (db: Db, userId: string, occurrenceId: string, now: Date) => close(db, userId, occurrenceId, now, "skipped");
 
 /** Who did a Chore and when, most recent first, with the Effort as it was each time. */
 export async function getHistory(db: Db, userId: string, choreId: string): Promise<Completion[]> {

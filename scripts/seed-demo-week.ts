@@ -1,9 +1,9 @@
 /**
  * Demo only: gives the Omiš flat (made in the tutorial recording) a believable first week. Chores from the
- * starter library are added as of last Wednesday, and Pope and Ana take turns doing them each evening, with a few
+ * starter library are added as of last Wednesday, and Pope and Nina take turns doing them each evening, with a few
  * left undone so Today has something overdue. Run with the app stopped (the local database allows one process).
  *
- *   DATABASE_URL=./.data/demo-omis4 npx tsx --tsconfig tsconfig.json scripts/seed-demo-week.ts
+ *   DATABASE_URL=./.data/demo-omis5 npx tsx --tsconfig tsconfig.json scripts/seed-demo-week.ts
  */
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
@@ -18,7 +18,7 @@ const today = "2026-11-19";
 async function main() {
   const db = getDb();
   const [pope] = await db.select().from(user).where(eq(user.email, "pope@omis.example"));
-  const [ana] = await db.select().from(user).where(eq(user.email, "ana@omis.example"));
+  const [nina] = await db.select().from(user).where(eq(user.email, "nina@omis.example"));
   const roomRows = await db.select().from(rooms);
   const fixtureRows = await db.select().from(fixtures);
   const room = (name: string) => roomRows.find((r) => r.name === name)!.id;
@@ -47,7 +47,7 @@ async function main() {
 
   const ids = new Map<string, Plan>();
   for (const [i, c] of plan.entries()) {
-    const id = await addChore(db, i % 2 ? ana.id : pope.id, { name: c.name, ...c.at, effort: c.effort, note: c.note, schedule: { kind: "every", days: c.every } }, at(start, "10:00"));
+    const id = await addChore(db, i % 2 ? nina.id : pope.id, { name: c.name, ...c.at, effort: c.effort, note: c.note, schedule: { kind: "every", days: c.every } }, at(start, "10:00"));
     ids.set(id, c);
   }
 
@@ -55,14 +55,14 @@ async function main() {
   const [shower] = await db.select().from(chores).where(eq(chores.name, "Clean the shower"));
   await db.update(occurrences).set({ dueOn: "2026-11-17" }).where(and(eq(occurrences.choreId, shower.id), isNull(occurrences.completedAt)));
 
-  // Each evening, whatever is due gets done, Pope and Ana taking turns, except the ones they let slide.
+  // Each evening, whatever is due gets done, Pope and Nina taking turns, except the ones they let slide.
   let turn = 0;
   for (let day = start; day < today; day = addDays(day, 1)) {
     const open = await db.select().from(occurrences).where(isNull(occurrences.completedAt));
     for (const o of open) {
       const c = ids.get(o.choreId);
       if (!c || o.dueOn > day || (c.skipFrom && day >= c.skipFrom)) continue;
-      await completeOccurrence(db, turn++ % 2 ? ana.id : pope.id, o.id, at(day, turn % 2 ? "19:30" : "20:15"));
+      await completeOccurrence(db, turn++ % 2 ? nina.id : pope.id, o.id, at(day, turn % 2 ? "19:30" : "20:15"));
     }
   }
   console.log("seeded", plan.length, "chores, completions:", turn);

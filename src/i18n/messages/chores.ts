@@ -32,9 +32,28 @@ const en = {
   onIt: (name: string) => `${name} is on it`,
   doneForYou: (by: string, chore: string) => `${by} did this for you: ${chore}`,
   gotIt: "OK",
+  za5: "Za5",
+  za5Label: (name: string) => `Za5: put off ${name}`,
+  laterToday: "Later today",
+  tomorrow: "Tomorrow",
+  skip: "Skip",
+  skipLabel: (name: string) => `Skip ${name} this time`,
+  za5Until: (time: string) => `Za5 till ${time}`,
+  za5UntilTomorrow: "Za5 till tomorrow",
+  za5Count: (n: number) =>
+    n === 0 ? "No Za5 yet this month. Impressive." : n === 1 ? "You said Za5 once this month." : n < 10 ? `You said Za5 ${n} times this month.` : `You said Za5 ${n} times this month. We see you.`,
+  balanceTitle: "Who did what",
+  balanceBody: "Minutes of chores done in the last 30 days.",
+  you: "You",
+  awayTitle: "Going away?",
+  awayBody: "Switch on Away and nothing becomes overdue while you're gone. When you're back, chores pick up from that day.",
+  goAway: "We're away",
+  awayBanner: (since: string) => `Away since ${since}. Nothing becomes overdue.`,
+  back: "We're back",
   weekdaysShort: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as [string, string, string, string, string, string, string],
 };
 
+const puta = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "put" : "puta");
 const dana = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "dan" : "dana");
 
 const hr: Shape<typeof en> = {
@@ -68,6 +87,24 @@ const hr: Shape<typeof en> = {
   onIt: (name: string) => `${name} je na tome`,
   doneForYou: (by: string, chore: string) => `Odrađeno umjesto tebe: ${chore} (${by})`,
   gotIt: "U redu",
+  za5: "Za5",
+  za5Label: (name: string) => `Za5: odgodi ${name}`,
+  laterToday: "Kasnije danas",
+  tomorrow: "Sutra",
+  skip: "Preskoči",
+  skipLabel: (name: string) => `Preskoči ovaj put: ${name}`,
+  za5Until: (time: string) => `Za5 do ${time}`,
+  za5UntilTomorrow: "Za5 do sutra",
+  za5Count: (n: number) =>
+    n === 0 ? "Ovaj mjesec još nijedan Za5. Svaka čast." : n < 10 ? `Za5 ovaj mjesec: ${n} ${puta(n)}.` : `Za5 ovaj mjesec: ${n} ${puta(n)}. Vidimo te.`,
+  balanceTitle: "Tko je što napravio",
+  balanceBody: "Minute obavljenih poslova u zadnjih 30 dana.",
+  you: "Ti",
+  awayTitle: "Idete na put?",
+  awayBody: "Uključi odsutnost i ništa neće kasniti dok vas nema. Kad se vratite, poslovi kreću od tog dana.",
+  goAway: "Odlazimo",
+  awayBanner: (since: string) => `Odsutni od ${since}. Ništa ne kasni.`,
+  back: "Vratili smo se",
   weekdaysShort: ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"],
 };
 
