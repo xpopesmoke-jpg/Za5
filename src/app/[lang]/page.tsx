@@ -22,16 +22,16 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const { me, household } = await getCurrentHome();
   const now = new Date();
   const db = getDb();
-  const [home, today, doneForYou, balance, za5Count] = await Promise.all([
+  const [home, today, doneForYou, balance, za5Count, hasChores] = await Promise.all([
     getHome(db, me.id),
     getToday(db, me.id, now),
     getDoneForYou(db, me.id),
     getFairness(db, me.id, now),
     getZa5Count(db, me.id, now),
+    hasAnyChore(db, me.id),
   ]);
   const t = DICT[lang];
   const hasRooms = home.floors.some((f) => f.rooms.length > 0);
-  const hasChores = await hasAnyChore(db, me.id);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 py-8">
       <header className="flex items-center justify-between">
@@ -63,6 +63,11 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       <TodayList items={today} lang={lang} timeZone={household.timeZone} now={now} />
       <Balance rows={balance} za5Count={za5Count} lang={lang} />
       <RoomTiles home={home} lang={lang} />
+      {home.canEdit && hasRooms && hasChores && (
+        <Link href="/setup" className="-mt-2 self-start text-[14px] font-bold text-ink-2 underline">
+          {t.setup.resume}
+        </Link>
+      )}
       {!household.awaySince && <GoAway lang={lang} />}
       {household.role === "owner" && <InvitePanel homeName={household.name} />}
       <form action={signOut}>

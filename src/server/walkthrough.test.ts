@@ -6,7 +6,7 @@ import { createHousehold } from "./households";
 import { addFixture, addFloor, addRoom, getHome } from "./home";
 import { getToday } from "./chores";
 import { getSetupStep, getSetupSteps, saveSetupStep } from "./walkthrough";
-import { NotAllowedError } from "./errors";
+import { NotAllowedError, ValidationError } from "./errors";
 
 const at = (local: string) => new Date(local.replace(" ", "T") + ":00+01:00");
 const now = at("2026-11-19 10:00");
@@ -135,5 +135,27 @@ describe("the first days after setup", () => {
     // within a week every Chore that comes at least weekly has been due once
     const weeklyOrMore = (await getSetupStep(db, pope, kitchen, "en")).added.filter((c) => (c.everyDays ?? 99) <= 7).length;
     expect(weekLater).toBeGreaterThanOrEqual(weeklyOrMore);
+  });
+});
+
+describe("saving a step all or nothing", () => {
+  it("writes nothing when one row is wrong, so trying again adds nothing twice", async () => {
+    const bad = { keep: [{ key: "clean-shower" }], extra: [{ name: "Descale the espresso machine", everyDays: 30, effort: 0 }] };
+
+    await expect(saveSetupStep(db, pope, bathroom, bad, "en", now)).rejects.toThrow(ValidationError);
+    expect(await todayNames()).toEqual([]);
+
+    await saveSetupStep(db, pope, bathroom, { ...bad, extra: [{ ...bad.extra[0], effort: 15 }] }, "en", now);
+    expect(await todayNames()).toEqual(["Clean the shower", "Descale the espresso machine"]);
+  });
+});
+
+describe("who can see the walkthrough", () => {
+  it("is the Owner only, for reading too", async () => {
+    const nina = await makeUser(db, "Nina");
+    await addMember(db, homeId, nina);
+
+    await expect(getSetupSteps(db, nina)).rejects.toThrow(NotAllowedError);
+    await expect(getSetupStep(db, nina, bathroom, "en")).rejects.toThrow(NotAllowedError);
   });
 });

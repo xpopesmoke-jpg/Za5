@@ -71,8 +71,9 @@ const hr: Shape<typeof en> = {
   namePlaceholder: "Očisti tuš-kabinu",
   place: "Gdje",
   howOften: "Koliko često",
-  everyLabel: "Svakih",
-  days: "dana",
+  // "Svakih 3 dana" is wrong (svaka 3 dana); a label that needs no agreement with the typed number.
+  everyLabel: "Razmak u danima:",
+  days: "",
   onDays: "Ovim danima",
   effort: "Koliko traje",
   effortHint: "U minutama. To se broji u ravnoteži između vas.",

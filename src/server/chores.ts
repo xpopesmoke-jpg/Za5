@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { chores, fixtures, occurrences, rooms, user } from "@/db/schema";
 import { CHORE_NAME_MAX, CHORE_NOTE_MAX, EFFORT_MAX, EVERY_DAYS_MAX } from "@/domain/limits";
-import { daysBetween, dueAfterDone, firstDue, localDay, scheduleFromColumns, scheduleToColumns, type Day, type Schedule } from "@/domain/schedule";
+import { addDays, daysBetween, dueAfterDone, firstDue, localDay, scheduleFromColumns, scheduleToColumns, type Day, type Schedule } from "@/domain/schedule";
 import type { FixtureType } from "./home-types";
 import { NotFoundError, ValidationError } from "./errors";
 import { householdOf, idOf } from "./scope";
@@ -20,6 +20,8 @@ export type NewChore = {
   schedule: Schedule;
   /** The starter-library entry it came from (set by the walkthrough) */
   libraryKey?: string | null;
+  /** For an interval schedule: first due this many days from today instead of today (the walkthrough spreads them) */
+  startsInDays?: number;
 };
 
 export type TodayItem = {
@@ -106,10 +108,14 @@ async function checkedPlace(db: Pick<Db, "select">, householdId: string, input: 
 }
 
 /** Any Member adds a Chore; its first Occurrence is due today (interval) or on its next weekday. */
+/** Checks a new Chore's name, note, Effort and schedule, the way addChore does, without writing anything. */
+export function checkNewChore(input: NewChore) {
+  return { ...checkedText(input), schedule: checkedSchedule(input.schedule) };
+}
+
 export async function addChore(db: Db, userId: string, input: NewChore, now: Date): Promise<string> {
   const home = await householdOf(db, userId);
-  const { name, note } = checkedText(input);
-  const schedule = checkedSchedule(input.schedule);
+  const { name, note, schedule } = checkNewChore(input);
   return db.transaction(async (tx) => {
     // Checked inside the transaction, with the Room held, so it cannot be removed under us.
     const place = await checkedPlace(tx, home.id, input);
@@ -126,7 +132,9 @@ export async function addChore(db: Db, userId: string, input: NewChore, now: Dat
         libraryKey: input.libraryKey ?? null,
       })
       .returning({ id: chores.id });
-    await tx.insert(occurrences).values({ householdId: home.id, choreId: chore.id, dueOn: firstDue(schedule, localDay(now, home.timeZone)) });
+    const first = firstDue(schedule, localDay(now, home.timeZone));
+    const startsIn = schedule.kind === "every" && input.startsInDays ? Math.max(0, Math.min(input.startsInDays, schedule.days - 1)) : 0;
+    await tx.insert(occurrences).values({ householdId: home.id, choreId: chore.id, dueOn: startsIn ? addDays(first, startsIn) : first });
     return chore.id;
   });
 }

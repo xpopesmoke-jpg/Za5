@@ -3,7 +3,7 @@ import type { Db } from "@/db/client";
 import { chores } from "@/db/schema";
 import { suggest, type HomeRoom, type LibraryChore } from "@/domain/library";
 import type { Lang } from "@/i18n/config";
-import { addChore } from "./chores";
+import { addChore, checkNewChore, type NewChore } from "./chores";
 import { NotAllowedError, NotFoundError } from "./errors";
 import type { FixtureType } from "./home-types";
 import { getHome } from "./home";
@@ -20,15 +20,22 @@ export type SetupChoices = {
   extra: { name: string; everyDays: number; effort: number; note?: string | null }[];
 };
 
+/** The Owner's home, for the walkthrough; Members don't walk through it. */
+async function ownersHome(db: Db, userId: string) {
+  const home = await getHome(db, userId);
+  if (!home.canEdit) throw new NotAllowedError("Only the owner can set up chores room by room.");
+  return home;
+}
+
 /** Every Room, floor by floor in the home's order, then the Whole home. */
 export async function getSetupSteps(db: Db, userId: string): Promise<SetupStep[]> {
-  const home = await getHome(db, userId);
+  const home = await ownersHome(db, userId);
   return [...home.floors.flatMap((f) => f.rooms.map((r): SetupStep => ({ kind: "room", roomId: r.id, name: r.name }))), { kind: "whole" }];
 }
 
 /** The Room as the starter library sees it (type and Fixtures), with its Fixtures' ids; null for the Whole home. */
 async function placeOf(db: Db, userId: string, roomId: string | null) {
-  const home = await getHome(db, userId);
+  const home = await ownersHome(db, userId);
   if (roomId === null) return { home, room: null };
   const room = home.floors.flatMap((f) => f.rooms).find((r) => r.id === roomId);
   if (!room) throw new NotFoundError("Room");
@@ -38,6 +45,14 @@ async function placeOf(db: Db, userId: string, roomId: string | null) {
 function libraryFor(room: { id: string; type: HomeRoom["type"]; fixtures: { type: FixtureType }[] } | null) {
   if (!room) return suggest([]).chores.filter((s) => s.roomId === null);
   return suggest([{ id: room.id, type: room.type, fixtures: room.fixtures.map((f) => f.type) }]).chores.filter((s) => s.roomId === room.id);
+}
+
+/** Where to go after a step: the next stop, or home after the Whole home. */
+export async function setupStepAfter(db: Db, userId: string, roomId: string | null): Promise<string> {
+  const steps = await getSetupSteps(db, userId);
+  const i = steps.findIndex((s) => (s.kind === "whole" ? roomId === null : s.roomId === roomId));
+  const next = steps[i + 1];
+  return !next ? "/" : `/setup/${next.kind === "whole" ? "whole" : next.roomId}`;
 }
 
 /**
@@ -82,39 +97,33 @@ export async function getSetupStep(db: Db, userId: string, roomId: string | null
  */
 export async function saveSetupStep(db: Db, userId: string, roomId: string | null, choices: SetupChoices, lang: Lang, now: Date): Promise<{ added: number }> {
   const { home, room } = await placeOf(db, userId, roomId);
-  if (!home.canEdit) throw new NotAllowedError("Only the owner can set up chores room by room.");
   const taken = new Set((await choresAt(db, home.householdId, roomId)).map((c) => c.libraryKey).filter(Boolean));
   const offered = new Map(libraryFor(room).map((s) => [s.chore.key, s]));
   const place = (fixture: FixtureType | null) => {
     const fixtureId = fixture ? room?.fixtures.find((f) => f.type === fixture)?.id : undefined;
     return fixtureId ? { fixtureId } : room ? { roomId: room.id } : {};
   };
-  let added = 0;
+  const toAdd: NewChore[] = [];
   for (const k of choices.keep) {
     const s = offered.get(k.key);
     if (!s || taken.has(k.key)) continue;
     taken.add(k.key);
     const everyDays = k.everyDays ?? everyDaysOf(s.chore);
-    const startAt = new Date(now.getTime() + firstDueOffset(s.chore.key, everyDays) * 86_400_000);
-    await addChore(
-      db,
-      userId,
-      {
-        name: s.chore.text[lang],
-        note: k.note,
-        effort: k.effort ?? s.chore.effort,
-        schedule: { kind: "every", days: everyDays },
-        libraryKey: s.chore.key,
-        ...place(s.fixture),
-      },
-      startAt,
-    );
-    added++;
+    toAdd.push({
+      name: s.chore.text[lang],
+      note: k.note,
+      effort: k.effort ?? s.chore.effort,
+      schedule: { kind: "every", days: everyDays },
+      libraryKey: s.chore.key,
+      startsInDays: Number.isInteger(everyDays) ? firstDueOffset(s.chore.key, everyDays) : 0,
+      ...place(s.fixture),
+    });
   }
   for (const e of choices.extra) {
-    if (!e.name.trim()) continue;
-    await addChore(db, userId, { name: e.name, note: e.note, effort: e.effort, schedule: { kind: "every", days: e.everyDays }, ...place(null) }, now);
-    added++;
+    if (e.name.trim()) toAdd.push({ name: e.name, note: e.note, effort: e.effort, schedule: { kind: "every", days: e.everyDays }, ...place(null) });
   }
-  return { added };
+  // All or nothing: every row is checked before any is written, so a fix-and-retry never adds a Chore twice.
+  toAdd.forEach(checkNewChore);
+  for (const c of toAdd) await addChore(db, userId, c, now);
+  return { added: toAdd.length };
 }

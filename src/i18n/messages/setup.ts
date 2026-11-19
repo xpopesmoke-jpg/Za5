@@ -13,6 +13,10 @@ const en = {
   every: "Every",
   days: "days",
   minutes: "min",
+  effortLead: "",
+  everyAria: "every how many days",
+  minutesAria: "minutes it takes",
+  resume: "Room-by-room suggestions",
   atFixture: (fixture: string) => `At the ${fixture.toLowerCase()}`,
   addNote: "Add a note",
   note: "Note",
@@ -39,14 +43,26 @@ const hr: Shape<typeof en> = {
   wholeBody: "Poslovi koji ne pripadaju jednoj prostoriji.",
   suggested: "Prijedlozi",
   suggestedBody: "Označeni se dodaju. Promijeni koliko često i koliko dugo ako ti tako više odgovara.",
-  every: "Svakih",
-  days: "dana",
+  // Croatian number agreement (svaki dan, svaka 3 dana, svakih 5 dana) can't follow a typed number, so the
+  // field gets a label that needs none.
+  every: "Razmak u danima:",
+  days: "",
   minutes: "min",
+  effortLead: "Trajanje:",
+  everyAria: "razmak u danima",
+  minutesAria: "trajanje u minutama",
+  resume: "Prijedlozi po prostorijama",
   atFixture: (fixture: string) => `Element: ${fixture.toLowerCase()}`,
   addNote: "Dodaj bilješku",
   note: "Bilješka",
   alreadyHere: "Već je ovdje",
-  everyN: (n: number) => (n === 1 ? "Svaki dan" : `Svakih ${n} dana`),
+  everyN: (n: number) => {
+    const last = n % 10;
+    const teen = n % 100 >= 11 && n % 100 <= 14;
+    if (last === 1 && !teen) return n === 1 ? "Svaki dan" : `Svaki ${n} dan`;
+    if (last >= 2 && last <= 4 && !teen) return `Svaka ${n} dana`;
+    return `Svakih ${n} dana`;
+  },
   missing: "Jesmo li nešto propustili?",
   missingBody: "Dodaj poslove kojih nema na popisu.",
   choreName: "Posao",
