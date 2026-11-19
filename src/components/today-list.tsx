@@ -32,30 +32,34 @@ export function TodayList({ items, lang }: { items: TodayItem[]; lang: Lang }) {
                   : item.roomName;
             const late = item.overdueDays > 0;
             return (
-              <li key={item.occurrenceId} className="flex items-center gap-3 rounded-card border-2 border-edge bg-surface p-3">
+              <li key={item.occurrenceId} className="flex items-start gap-3 rounded-card border-2 border-edge bg-surface p-3">
                 <form action={completeAction.bind(null, item.occurrenceId)}>
                   <button
                     type="submit"
                     aria-label={t.markDone(item.name)}
-                    className="flex size-12 shrink-0 items-center justify-center rounded-full border-[2.5px] border-edge bg-surface text-ink-2 hover:bg-clean hover:text-edge"
+                    className="flex size-12 shrink-0 items-center justify-center rounded-full border-[2.5px] border-edge bg-surface text-ink-2 hover:bg-raised hover:text-ink active:bg-clean"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </form>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-[16px] font-extrabold leading-tight">{item.name}</span>
-                  <span className="text-[13px] font-semibold text-ink-2">
-                    {where}, {t.minutes(item.effort)}
-                  </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+                      <span className="text-[16px] font-extrabold leading-tight">{item.name}</span>
+                      <span className="text-[13px] font-semibold text-ink-2">
+                        {where}, {t.minutes(item.effort)}
+                      </span>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-extrabold ${late ? "bg-accent text-accent-ink" : "bg-raised text-ink-2"}`}>
+                      {late ? t.overdue(item.overdueDays) : t.dueToday}
+                    </span>
+                  </div>
                   {item.note && <span className="text-[13px] text-ink-2">{item.note}</span>}
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className={`rounded-full px-2.5 py-1 text-[12px] font-extrabold ${late ? "bg-accent text-accent-ink" : "bg-raised text-ink-2"}`}>
-                    {late ? t.overdue(item.overdueDays) : t.dueToday}
-                  </span>
-                  <ClaimControl item={item} t={t} />
+                  <div className="flex justify-end">
+                    <ClaimControl item={item} t={t} />
+                  </div>
                 </div>
               </li>
             );
