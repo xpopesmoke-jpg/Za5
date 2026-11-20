@@ -54,6 +54,18 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       </div>
       {household.awaySince && <AwayBanner since={household.awaySince} lang={lang} timeZone={household.timeZone} />}
       <DoneForYouNotes notes={doneForYou} lang={lang} />
+      {home.canEdit && !hasRooms && (
+        <section aria-labelledby="plan" className="flex flex-col gap-2 rounded-card border-2 border-edge bg-za5 p-4 text-za5-ink">
+          <h2 id="plan" className="text-[22px]">{t.plan.uploadPlan}</h2>
+          <p className="text-[14px]">{t.plan.uploadPlanHint}</p>
+          <Link href="/plan" className="mt-1 flex min-h-12 items-center justify-center rounded-full border-2 border-edge bg-surface text-[16px] font-extrabold text-ink">
+            {t.plan.choose}
+          </Link>
+          <Link href="/rooms" className="self-center py-2 text-[14px] font-bold underline">
+            {t.plan.orList}
+          </Link>
+        </section>
+      )}
       {home.canEdit && hasRooms && !hasChores && (
         <section aria-labelledby="setup" className="flex flex-col gap-2 rounded-card border-2 border-edge bg-za5 p-4 text-za5-ink">
           <h2 id="setup" className="text-[22px]">{t.setup.startTitle}</h2>

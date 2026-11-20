@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { contains, type Outline } from "@/domain/layout";
 import type { FixtureType, RoomType } from "@/server/home-types";
-import type { MapRoom } from "@/server/home-map";
+import type { MapRoom } from "@/domain/map";
+import type { DraftOpening } from "@/domain/plan";
 import { ROOM_TOKEN } from "./room-colours";
 
 /*
@@ -60,6 +61,8 @@ const FURNITURE: Partial<Record<RoomType, Shape3[]>> = {
 
 export type HomeMap3DProps = {
   rooms: MapRoom[];
+  /** Doors and windows on this Floor */
+  openings?: DraftOpening[];
   selected: string | null;
   onPick: (roomId: string | null) => void;
   /** Called when this device can't draw 3D, so the page keeps only the Room chips */
@@ -138,12 +141,21 @@ function buildRoom(room: MapRoom, mats: Materials) {
   const xs = room.polygon.map((p) => p[0] * CM);
   const zs = room.polygon.map((p) => p[1] * CM);
   const [minX, maxX, minZ, maxZ] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-  // Fixtures have no saved position yet: rows from the back corner, each kept only where it lies inside the Room.
+  // Fixtures stand where the Plan showed them; the rest go in rows from the back corner, where they fit inside.
+  const place = (s: Shape3, cx: number, cz: number) => {
+    const m = box(s.w, s.h, s.d, mats.fill(s.colour), mats.edge);
+    m.position.set(cx, s.h / 2, cz);
+    group.add(m);
+  };
   let fx = minX + 0.2;
   let fz = minZ + 0.2;
   for (const f of room.fixtures) {
-    const s = FIXTURE_SHAPE[f];
+    const s = FIXTURE_SHAPE[f.type];
     if (!s) continue;
+    if (f.at && contains(room.polygon, f.at)) {
+      place(s, f.at[0] * CM, f.at[1] * CM);
+      continue;
+    }
     while (fz + s.d <= maxZ - 0.1) {
       if (fx + s.w > maxX - 0.1) {
         fx = minX + 0.2;
@@ -154,9 +166,7 @@ function buildRoom(room: MapRoom, mats: Materials) {
       const cz = fz + s.d / 2;
       fx += s.w + 0.1;
       if (fitsIn(room.polygon, cx, cz, s.w + 0.1, s.d + 0.1)) {
-        const m = box(s.w, s.h, s.d, mats.fill(s.colour), mats.edge);
-        m.position.set(cx, s.h / 2, cz);
-        group.add(m);
+        place(s, cx, cz);
         break;
       }
     }
@@ -168,11 +178,35 @@ function buildRoom(room: MapRoom, mats: Materials) {
     const cx = midX + (i ? 0.2 : -0.1);
     const cz = midZ + i * (f.d + 0.25) - 0.1;
     if (!fitsIn(room.polygon, cx, cz, f.w + 0.2, f.d + 0.2)) return;
-    const m = box(f.w, f.h, f.d, mats.fill(f.colour), mats.edge);
-    m.position.set(cx, f.h / 2, cz);
-    group.add(m);
+    place(f, cx, cz);
   });
   return { group, floor, base, centre: new THREE.Vector3(midX, 0, midZ), size: Math.max(maxX - minX, maxZ - minZ) };
+}
+
+/**
+ * Doors and windows as plan symbols on the floor along their wall: a wooden strip for a door, a sky-blue one for
+ * a window, turned to the nearest Room edge.
+ */
+function buildOpenings(openings: DraftOpening[], rooms: MapRoom[], mats: Materials) {
+  const group = new THREE.Group();
+  for (const o of openings) {
+    let best = { d: Infinity, angle: 0 };
+    for (const r of rooms) {
+      r.polygon.forEach(([x1, y1], i) => {
+        const [x2, y2] = r.polygon[(i + 1) % r.polygon.length];
+        const len2 = (x2 - x1) ** 2 + (y2 - y1) ** 2 || 1;
+        const t = Math.max(0, Math.min(1, ((o.at[0] - x1) * (x2 - x1) + (o.at[1] - y1) * (y2 - y1)) / len2));
+        const d = Math.hypot(o.at[0] - (x1 + t * (x2 - x1)), o.at[1] - (y1 + t * (y2 - y1)));
+        if (d < best.d) best = { d, angle: -Math.atan2(y2 - y1, x2 - x1) };
+      });
+    }
+    const door = o.kind === "door";
+    const strip = box(o.width * CM, door ? 0.03 : 0.05, door ? 0.16 : 0.12, mats.fill(door ? "#c98b5a" : "#8fd3f4"), mats.edge);
+    strip.position.set(o.at[0] * CM, door ? 0.015 : 0.025, o.at[1] * CM);
+    strip.rotation.y = best.angle;
+    group.add(strip);
+  }
+  return group;
 }
 
 type SceneControls = {
@@ -184,16 +218,16 @@ type SceneControls = {
  * Draws one Floor of the home; tapping a Room picks it (tap it again, or empty floor, to let go). Badges with
  * each Room's count sit over the canvas, positioned from the 3D centres.
  */
-export function HomeMap3D({ rooms, selected, onPick, onUnavailable, label }: HomeMap3DProps) {
+export function HomeMap3D({ rooms, openings = [], selected, onPick, onUnavailable, label }: HomeMap3DProps) {
   const host = useRef<HTMLDivElement>(null);
   const badges = useRef<HTMLDivElement>(null);
   const controls = useRef<SceneControls | null>(null);
-  const latest = useRef({ rooms, selected, onPick, onUnavailable });
+  const latest = useRef({ rooms, openings, selected, onPick, onUnavailable });
   useEffect(() => {
-    latest.current = { rooms, selected, onPick, onUnavailable };
+    latest.current = { rooms, openings, selected, onPick, onUnavailable };
   });
   // Only a change in the layout itself rebuilds the scene; a refreshed page with the same rooms does not.
-  const layoutKey = useMemo(() => JSON.stringify(rooms.map((r) => [r.id, r.type, r.polygon, r.fixtures])), [rooms]);
+  const layoutKey = useMemo(() => JSON.stringify([rooms.map((r) => [r.id, r.type, r.polygon, r.fixtures]), openings]), [rooms, openings]);
 
   useEffect(() => {
     const el = host.current!;
@@ -219,6 +253,7 @@ export function HomeMap3D({ rooms, selected, onPick, onUnavailable, label }: Hom
     const mats = materials();
     const built = latest.current.rooms.map((r) => ({ id: r.id, ...buildRoom(r, mats) }));
     built.forEach((b) => world.add(b.group));
+    world.add(buildOpenings(latest.current.openings, latest.current.rooms, mats));
     const bounds = new THREE.Box3();
     built.forEach((b) => bounds.expandByObject(b.group));
     const centre = bounds.isEmpty() ? new THREE.Vector3() : bounds.getCenter(new THREE.Vector3());

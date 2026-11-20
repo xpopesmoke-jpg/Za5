@@ -30,6 +30,13 @@ _Avoid_: Admin, parent
 The floor-plan file a Household uploads (PDF or image), which the AI reads to build the Home map.
 _Avoid_: Schematic, blueprint, drawing
 
+**Plan reading**:
+Claude reading a Plan into a Draft home. Each Household gets 5 a day, counted in its own time zone; the app owner has no limit, and a reading that fails is given back.
+
+**Draft home**:
+What a Plan reading found (Floors, Rooms, doors, windows and Fixtures), shown beside the Plan. It becomes the home only when the Owner chooses "Looks right" or "Fix it"; a Room whose name matches an existing Room keeps its Chores.
+_Avoid_: Result, scan
+
 **Home map**:
 The household's home as a stylised 3D "dollhouse": rooms with raised walls and no roof, showing where Chores and Supplies are.
 _Avoid_: Floor plan (that is the Plan), 3D model, visualization

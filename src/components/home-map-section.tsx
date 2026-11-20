@@ -65,7 +65,7 @@ export function HomeMapSection({ map, children }: { map: HomeMap; children: Reac
           {rooms.length === 0 ? (
             <p className="p-6 text-[14px] text-ink-2">{t.rooms.noRooms}</p>
           ) : (
-            !no3d && <HomeMap3D rooms={rooms} selected={filter.kind === "room" ? filter.id : null} onPick={onPick} onUnavailable={onUnavailable} label={t.home.mapSummary(rooms.length, floorDue)} />
+            !no3d && <HomeMap3D rooms={rooms} openings={floor?.openings} selected={filter.kind === "room" ? filter.id : null} onPick={onPick} onUnavailable={onUnavailable} label={t.home.mapSummary(rooms.length, floorDue)} />
           )}
           {map.wholeHome.due > 0 && (
             <button

@@ -5,6 +5,12 @@ import { user } from "./auth-schema";
 export * from "./auth-schema";
 
 /** The people who share one home and its Chores. */
+/** A door or window on a Floor: its middle point and width in centimetres. */
+export type Opening = { kind: "door" | "window"; at: [number, number]; width: number };
+
+/** What the Plan reader found, kept until the Owner says "Looks right" (see src/domain/plan.ts). */
+export type DraftHomeJson = import("@/domain/plan").DraftHome;
+
 export const households = pgTable("households", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -56,6 +62,8 @@ export const floors = pgTable(
     // Empty until the Owner names it; screens then show "Floor 1", "Floor 2" in the Member's language.
     name: text("name"),
     position: integer("position").notNull(),
+    // Doors and windows read from the Plan, in centimetres on the Floor; empty until a Plan is read.
+    openings: jsonb("openings").$type<Opening[]>(),
   },
   (t) => [index("floors_household_idx").on(t.householdId)],
 );
@@ -86,6 +94,8 @@ export const fixtures = pgTable(
     roomId: uuid("room_id").notNull().references(() => rooms.id, { onDelete: "cascade" }),
     type: fixtureType("type").notNull(),
     position: integer("position").notNull(),
+    // Where it stands on the Floor, in centimetres, when the Plan showed it; otherwise the map places it.
+    at: jsonb("at").$type<[number, number]>(),
   },
   (t) => [index("fixtures_room_idx").on(t.roomId)],
 );
@@ -180,4 +190,40 @@ export const za5Presses = pgTable(
     pressedAt: timestamp("pressed_at", { withTimezone: true }).notNull(),
   },
   (t) => [index("za5_presses_user_idx").on(t.userId, t.pressedAt)],
+);
+
+export const planStatus = pgEnum("plan_status", ["uploaded", "read", "failed"]);
+
+/**
+ * A Household's Plan: the uploaded file and its pages as images, kept on the server's volume (see PlanStore).
+ * One per Household; uploading a new Plan replaces it.
+ */
+export const plans = pgTable("plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id")
+    .notNull()
+    .unique()
+    .references(() => households.id, { onDelete: "cascade" }),
+  uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
+  fileName: text("file_name").notNull(),
+  mediaType: text("media_type").notNull(),
+  pageCount: integer("page_count").notNull(),
+  status: planStatus("status").notNull().default("uploaded"),
+  draft: jsonb("draft").$type<DraftHomeJson>(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+});
+
+/** One Plan reading, counted against the Household's daily limit; a failed reading's row is removed (refunded). */
+export const planReadings = pgTable(
+  "plan_readings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    // the Household's local day the reading counts against
+    day: date("day", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("plan_readings_household_day_idx").on(t.householdId, t.day)],
 );

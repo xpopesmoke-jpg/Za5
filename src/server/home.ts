@@ -1,15 +1,16 @@
 import { and, asc, count, eq, inArray, max, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { chores, fixtures, floors, households, rooms } from "@/db/schema";
+import { chores, fixtures, floors, households, rooms, type Opening } from "@/db/schema";
 import { FIXTURE_TYPES, ROOM_TYPES, type FixtureType, type RoomType } from "./home-types";
 import { clockwise, signedArea2, type Outline } from "@/domain/layout";
 import { FLOOR_NAME_MAX, ROOM_NAME_MAX } from "@/domain/limits";
+import { OUTLINE_MAX_CM } from "@/domain/plan";
 import { NotAllowedError, NotFoundError, ValidationError } from "./errors";
 import { getMyHousehold } from "./households";
 
 export type { FixtureType, RoomType };
 
-export type HomeFixture = { id: string; type: FixtureType };
+export type HomeFixture = { id: string; type: FixtureType; /** where the Plan showed it, in centimetres */ at: [number, number] | null };
 export type HomeRoom = {
   id: string;
   type: RoomType;
@@ -18,7 +19,7 @@ export type HomeRoom = {
   outline: Outline | null;
   fixtures: HomeFixture[];
 };
-export type HomeFloor = { id: string; name: string | null; rooms: HomeRoom[] };
+export type HomeFloor = { id: string; name: string | null; rooms: HomeRoom[]; openings: Opening[] };
 export type Home = { householdId: string; canEdit: boolean; floors: HomeFloor[] };
 
 async function householdOf(db: Db, userId: string) {
@@ -39,6 +40,7 @@ export async function getHome(db: Db, userId: string): Promise<Home> {
     floors: floorRows.map((f) => ({
       id: f.id,
       name: f.name,
+      openings: f.openings ?? [],
       rooms: roomRows
         .filter((r) => r.floorId === f.id)
         .map((r) => ({
@@ -46,14 +48,14 @@ export async function getHome(db: Db, userId: string): Promise<Home> {
           type: r.type,
           name: r.name,
           outline: r.outline ?? null,
-          fixtures: fixtureRows.filter((x) => x.roomId === r.id).map((x) => ({ id: x.id, type: x.type })),
+          fixtures: fixtureRows.filter((x) => x.roomId === r.id).map((x) => ({ id: x.id, type: x.type, at: x.at ?? null })),
         })),
     })),
   };
 }
 
 /** The Owner's Household; anyone else gets NotAllowedError, because only the Owner changes the home. */
-async function ownersHousehold(db: Db, userId: string) {
+export async function ownersHousehold(db: Db, userId: string) {
   const household = await householdOf(db, userId);
   if (household.role !== "owner") throw new NotAllowedError("Only the owner can change the home.");
   return household;
@@ -124,7 +126,7 @@ export async function removeRoom(db: Db, userId: string, roomId: string) {
  * Before Rooms go, their Chores keep their history and wait in "Needs a new room" (the Room link clears itself
  * when the Room is deleted).
  */
-async function moveChoresToNeedsRoom(tx: Pick<Db, "update">, which: SQL | undefined) {
+export async function moveChoresToNeedsRoom(tx: Pick<Db, "update">, which: SQL | undefined) {
   await tx.update(chores).set({ needsRoom: true, fixtureId: null }).where(which);
 }
 
@@ -185,7 +187,6 @@ export async function removeFloor(db: Db, userId: string, floorId: string) {
 }
 
 /** Largest home side the outline accepts, in centimetres (a 100 m wide flat is not a flat). */
-const OUTLINE_MAX_CM = 10_000;
 
 /**
  * The Owner sets a Room's outline: its corners on the Floor in centimetres. Used by the Plan reader and the

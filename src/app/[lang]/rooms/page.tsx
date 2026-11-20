@@ -38,6 +38,10 @@ export default async function RoomsPage({ params }: PageProps<"/[lang]/rooms">) 
         <h1 className="text-[28px]">{t.editRooms}</h1>
         <Link href="/" className="text-[15px] font-semibold text-accent">{t.done}</Link>
       </header>
+      <Link href="/plan" className="flex flex-col rounded-card border-2 border-edge bg-za5 px-4 py-3 text-za5-ink">
+        <span className="text-[16px] font-extrabold">{DICT[lang].plan.uploadPlan}</span>
+        <span className="text-[14px]">{DICT[lang].plan.uploadPlanHint}</span>
+      </Link>
 
       {home.floors.map((floor, i) => (
         <section key={floor.id} className="flex flex-col gap-3 rounded-card border-2 border-edge bg-raised p-4">

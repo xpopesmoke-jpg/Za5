@@ -8,6 +8,13 @@ const HR_EXACT: Record<string, string> = {
   "Give your home a name.": "Daj svom domu ime.",
   "You already belong to a home.": "Već pripadaš jednom domu.",
   "That didn't work. Try again.": "Nije uspjelo. Pokušaj ponovno.",
+  "Choose a PDF or pictures of your plan.": "Odaberi PDF ili slike svog tlocrta.",
+  "A page of the plan couldn't be read as a picture.": "Jedna stranica tlocrta ne može se otvoriti kao slika.",
+  "Choose a PDF or pictures (JPEG, PNG, WebP or HEIC).": "Odaberi PDF ili slike (JPEG, PNG, WebP ili HEIC).",
+  "That plan is too big. Up to 25 MB, please.": "Tlocrt je prevelik. Najviše 25 MB, molim.",
+  "No rooms were found on this Plan.": "Na ovom tlocrtu nisu pronađene prostorije.",
+  "Read the plan first.": "Najprije pročitaj tlocrt.",
+  "Plan wasn't found.": "Tlocrt nije pronađen.",
   "Only the owner can change the home.": "Samo vlasnik može mijenjati dom.",
   "Give the room a name.": "Daj prostoriji ime.",
   "A home needs at least one floor.": "Dom treba imati barem jednu etažu.",
@@ -31,6 +38,8 @@ const HR_EXACT: Record<string, string> = {
 };
 
 const HR_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
+  [/^A plan can have up to (\d+) pages\.$/, (m) => `Tlocrt može imati najviše ${m[1]} stranica.`],
+  [/^You've used today's (\d+) Plan readings\. You can read it again tomorrow\.$/, () => "Iskoristio si današnja čitanja tlocrta. Možeš ga ponovno pročitati sutra."],
   [/^Keep the name under (\d+) characters\.$/, (m) => `Neka ime bude kraće od ${m[1]} znakova.`],
   [/^Keep the note under (\d+) characters\.$/, (m) => `Neka bilješka bude kraća od ${m[1]} znakova.`],
   [/^Effort is 1 to (\d+) minutes\.$/, (m) => `Trajanje je od 1 do ${m[1]} minuta.`],
