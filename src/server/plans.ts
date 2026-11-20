@@ -3,11 +3,12 @@ import type { Db } from "@/db/client";
 import { chores, fixtures, floors, households, planReadings, plans, rooms, user } from "@/db/schema";
 import { DICT } from "@/i18n/dictionary";
 import type { Lang } from "@/i18n/config";
-import { parseDraft, PLAN_PAGES_MAX, UnreadablePlanError, type DraftHome } from "@/domain/plan";
+import { FILE_BYTES_MAX, PAGE_BYTES_MAX, parseDraft, PLAN_PAGES_MAX, READER_SCHEMA, UnreadablePlanError, type DraftHome } from "@/domain/plan";
 import { localDay } from "@/domain/schedule";
 import { ROOM_NAME_MAX } from "@/domain/limits";
 import { moveChoresToNeedsRoom, ownersHousehold } from "./home";
-import { NotFoundError, ValidationError } from "./errors";
+import { isUniqueViolation, NotFoundError, ValidationError } from "./errors";
+import { getMyHousehold } from "./households";
 import type { PlanStore } from "./plan-store";
 
 /*
@@ -17,12 +18,10 @@ import type { PlanStore } from "./plan-store";
  */
 
 export const PLAN_READINGS_PER_DAY = 5;
-const PAGE_BYTES_MAX = 4 * 1024 * 1024;
-const FILE_BYTES_MAX = 25 * 1024 * 1024;
 const PLAN_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
-/** Reads a Plan's pages (JPEG images, one Floor each) and answers with the raw draft (see READER_SCHEMA). */
-export type PlanReader = (input: { pages: { mediaType: "image/jpeg"; data: Buffer }[]; lang: Lang }) => Promise<unknown>;
+/** Reads a Plan's pages (JPEG images, one Floor each) and answers with the raw draft, in the shape of `schema`. */
+export type PlanReader = (input: { pages: { mediaType: "image/jpeg"; data: Buffer }[]; lang: Lang; schema: typeof READER_SCHEMA }) => Promise<unknown>;
 
 export type PlanUpload = { files: { name: string; mediaType: string; data: Buffer }[]; pages: Buffer[] };
 
@@ -38,17 +37,27 @@ export type PlanView = {
 };
 
 const isJpeg = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+/** Whether the file's first bytes match the type the browser said it is. */
+const looksLike = (b: Buffer, mediaType: string) =>
+  (<Record<string, () => boolean>>{
+    "application/pdf": () => b.subarray(0, 5).toString("latin1") === "%PDF-",
+    "image/jpeg": () => isJpeg(b),
+    "image/png": () => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    "image/webp": () => b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP",
+    "image/heic": () => b.subarray(4, 8).toString("latin1") === "ftyp",
+    "image/heif": () => b.subarray(4, 8).toString("latin1") === "ftyp",
+  })[mediaType]?.() ?? false;
 const extOf = (mediaType: string) => ({ "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif" })[mediaType] ?? "bin";
 
 /** Keeps a new Plan for the Owner's home, replacing the earlier one and its files. */
-export async function uploadPlan(db: Db, userId: string, input: PlanUpload, store: PlanStore, now: Date): Promise<string> {
+export async function uploadPlan(db: Db, userId: string, input: PlanUpload, now: Date, store: PlanStore): Promise<string> {
   const household = await ownersHousehold(db, userId);
   const { files, pages } = input;
   if (pages.length === 0 || files.length === 0) throw new ValidationError("Choose a PDF or pictures of your plan.");
   if (pages.length > PLAN_PAGES_MAX || files.length > PLAN_PAGES_MAX) throw new ValidationError(`A plan can have up to ${PLAN_PAGES_MAX} pages.`);
   if (pages.some((p) => !isJpeg(p) || p.length > PAGE_BYTES_MAX)) throw new ValidationError("A page of the plan couldn't be read as a picture.");
-  if (files.some((f) => !PLAN_TYPES.includes(f.mediaType))) throw new ValidationError("Choose a PDF or pictures (JPEG, PNG, WebP or HEIC).");
-  if (files.reduce((s, f) => s + f.data.length, 0) > FILE_BYTES_MAX) throw new ValidationError("That plan is too big. Up to 25 MB, please.");
+  if (files.some((f) => !PLAN_TYPES.includes(f.mediaType) || !looksLike(f.data, f.mediaType))) throw new ValidationError("Choose a PDF or pictures (JPEG, PNG, WebP or HEIC).");
+  if (files.reduce((s, f) => s + f.data.length, 0) > FILE_BYTES_MAX) throw new ValidationError("That plan is too big. Up to 20 MB, please.");
 
   const [old] = await db.select({ id: plans.id }).from(plans).where(eq(plans.householdId, household.id));
   const id = crypto.randomUUID();
@@ -58,10 +67,16 @@ export async function uploadPlan(db: Db, userId: string, input: PlanUpload, stor
     ...pages.map((p, i) => store.put(`${id}/page-${i + 1}.jpg`, p)),
   ]);
   const fileName = files.map((f) => f.name.replace(/[\r\n]/g, " ").slice(0, 120)).join(", ");
-  await db.transaction(async (tx) => {
-    if (old) await tx.delete(plans).where(eq(plans.id, old.id));
-    await tx.insert(plans).values({ id, householdId: household.id, uploadedBy: userId, fileName, mediaType: files[0].mediaType, pageCount: pages.length, uploadedAt: now });
-  });
+  try {
+    await db.transaction(async (tx) => {
+      if (old) await tx.delete(plans).where(eq(plans.id, old.id));
+      await tx.insert(plans).values({ id, householdId: household.id, uploadedBy: userId, fileName, mediaType: files[0].mediaType, pageCount: pages.length, uploadedAt: now });
+    });
+  } catch (err) {
+    await store.removeAll(id);
+    if (isUniqueViolation(err)) throw new ValidationError("Another plan was being saved at the same time. Try again.");
+    throw err;
+  }
   if (old) await store.removeAll(old.id);
   return id;
 }
@@ -85,26 +100,48 @@ export async function getPlan(db: Db, userId: string, now: Date, unlimitedEmails
 
 /** One page of the Owner's Plan as a JPEG (pages count from 1). */
 export async function planPage(db: Db, userId: string, page: number, store: PlanStore): Promise<Buffer> {
-  const plan = await planOf(db, userId);
+  const plan = await planOf(db, (await ownersHousehold(db, userId)).id);
   if (!Number.isInteger(page) || page < 1 || page > plan.pageCount) throw new NotFoundError("Page");
   const data = await store.get(`${plan.id}/page-${page}.jpg`);
   if (!data) throw new NotFoundError("Page");
   return data;
 }
 
+/** One of the files the Owner uploaded, as it was (files count from 1). */
+export async function planOriginal(db: Db, userId: string, n: number, store: PlanStore) {
+  const plan = await planOf(db, (await ownersHousehold(db, userId)).id);
+  const names = plan.fileName.split(", ");
+  if (!Number.isInteger(n) || n < 1) throw new NotFoundError("File");
+  const mediaType = n === 1 ? plan.mediaType : null;
+  for (const type of mediaType ? [mediaType] : PLAN_TYPES) {
+    const data = await store.get(`${plan.id}/original-${n}.${extOf(type)}`);
+    if (data) return { name: names[n - 1] ?? `plan-${n}`, mediaType: type, data };
+  }
+  throw new NotFoundError("File");
+}
+
+/** Whether the home has a Plan: any Member may know, for the privacy notice. */
+export async function hasPlan(db: Db, userId: string): Promise<boolean> {
+  const household = await getMyHousehold(db, userId);
+  if (!household) return false;
+  const [row] = await db.select({ id: plans.id }).from(plans).where(eq(plans.householdId, household.id));
+  return !!row;
+}
+
 /**
- * Reads the Plan with Claude into a draft home and keeps it for "Looks right". Counts against the
- * Household's daily readings unless the person is the app owner; a reading that fails is given back.
+ * Reads the Plan with Claude into a Draft home and keeps it for "Looks right". Counts against the
+ * Household's daily readings unless the person is the app owner. A reading that fails (Claude didn't answer,
+ * or answered nonsense) is given back; one that found no rooms counts, because Claude did read it.
  */
 export async function readPlan(
   db: Db,
   userId: string,
-  deps: { reader: PlanReader; store: PlanStore; unlimitedEmails: string[] },
   lang: Lang,
   now: Date,
+  deps: { reader: PlanReader; store: PlanStore; unlimitedEmails: string[] },
 ): Promise<DraftHome> {
   const household = await ownersHousehold(db, userId);
-  const plan = await planOf(db, userId);
+  const plan = await planOf(db, household.id);
   const day = localDay(now, household.timeZone);
   const unlimited = await isUnlimited(db, userId, deps.unlimitedEmails);
 
@@ -126,12 +163,13 @@ export async function readPlan(
         return { mediaType: "image/jpeg" as const, data };
       }),
     );
-    const draft = parseDraft(await deps.reader({ pages, lang }), plan.pageCount);
+    const draft = parseDraft(await deps.reader({ pages, lang, schema: READER_SCHEMA }), plan.pageCount);
     await db.update(plans).set({ status: "read", draft, readAt: now }).where(eq(plans.id, plan.id));
     return draft;
   } catch (err) {
-    await db.delete(planReadings).where(eq(planReadings.id, readingId));
-    await db.update(plans).set({ status: "failed" }).where(eq(plans.id, plan.id));
+    if (!(err instanceof UnreadablePlanError)) await db.delete(planReadings).where(eq(planReadings.id, readingId));
+    // an earlier good draft stays, so a failed "Read again" loses nothing
+    if (!plan.draft) await db.update(plans).set({ status: "failed" }).where(eq(plans.id, plan.id));
     if (err instanceof UnreadablePlanError) throw new ValidationError(err.message);
     throw err;
   }
@@ -144,7 +182,7 @@ export async function readPlan(
  */
 export async function applyPlanDraft(db: Db, userId: string, lang: Lang): Promise<void> {
   const household = await ownersHousehold(db, userId);
-  const plan = await planOf(db, userId);
+  const plan = await planOf(db, household.id);
   if (plan.status !== "read" || !plan.draft) throw new ValidationError("Read the plan first.");
   const draftFloors = plan.draft.floors.filter((f) => f.rooms.length > 0);
   const roomTypeName = DICT[lang].rooms.roomTypes;
@@ -160,7 +198,7 @@ export async function applyPlanDraft(db: Db, userId: string, lang: Lang): Promis
       else [{ id: floorId }] = await tx.insert(floors).values({ householdId: household.id, name: f.name, position: i, openings: f.openings }).returning({ id: floors.id });
 
       for (const [j, r] of f.rooms.entries()) {
-        const name = (r.name || roomTypeName[r.type] || r.type).slice(0, ROOM_NAME_MAX);
+        const name = (r.name.trim() || roomTypeName[r.type] || r.type).slice(0, ROOM_NAME_MAX);
         const match = oldRooms.find((o) => !kept.has(o.id) && o.name.trim().toLowerCase() === name.toLowerCase());
         let roomId: string;
         if (match) {
@@ -189,14 +227,14 @@ export async function applyPlanDraft(db: Db, userId: string, lang: Lang): Promis
 
 /** Delete plan: removes the stored files and the Plan; the home stays as it is. */
 export async function deletePlan(db: Db, userId: string, store: PlanStore): Promise<void> {
-  const plan = await planOf(db, userId);
+  const plan = await planOf(db, (await ownersHousehold(db, userId)).id);
   await db.delete(plans).where(eq(plans.id, plan.id));
   await store.removeAll(plan.id);
 }
 
-async function planOf(db: Db, userId: string) {
-  const household = await ownersHousehold(db, userId);
-  const [plan] = await db.select().from(plans).where(and(eq(plans.householdId, household.id)));
+/** The Household's Plan (callers check the Owner first). */
+async function planOf(db: Db, householdId: string) {
+  const [plan] = await db.select().from(plans).where(eq(plans.householdId, householdId));
   if (!plan) throw new NotFoundError("Plan");
   return plan;
 }

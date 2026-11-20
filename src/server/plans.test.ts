@@ -5,9 +5,10 @@ import { addMember, makeUser } from "@/test/helpers";
 import { createHousehold } from "./households";
 import { addFixture, addRoom, getHome } from "./home";
 import { addChore, getToday } from "./chores";
-import { applyPlanDraft, deletePlan, getPlan, planPage, readPlan, uploadPlan, type PlanReader } from "./plans";
+import { applyPlanDraft, deletePlan, getPlan, hasPlan, planOriginal, planPage, readPlan, uploadPlan, type PlanReader } from "./plans";
 import { memoryPlanStore, type PlanStore } from "./plan-store";
 import { NotAllowedError, ValidationError } from "./errors";
+import { READER_SCHEMA } from "@/domain/plan";
 
 const at = (local: string) => new Date(local.replace(" ", "T") + ":00+01:00");
 const jpeg = (tag: string) => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from(tag)]);
@@ -57,8 +58,8 @@ beforeEach(async () => {
 });
 
 const upload = (pages = [jpeg("p1")], who = pope) =>
-  uploadPlan(db, who, { files: [{ name: "tlocrt.pdf", mediaType: "application/pdf", data: pdf }], pages }, store, now);
-const read = (reader: PlanReader, when = now, unlimitedEmails: string[] = []) => readPlan(db, pope, { reader, store, unlimitedEmails }, "en", when);
+  uploadPlan(db, who, { files: [{ name: "tlocrt.pdf", mediaType: "application/pdf", data: pdf }], pages }, now, store);
+const read = (reader: PlanReader, when = now, unlimitedEmails: string[] = []) => readPlan(db, pope, "en", when, { reader, store, unlimitedEmails });
 
 describe("uploading a Plan", () => {
   it("keeps the file and its pages, one Floor per page", async () => {
@@ -73,8 +74,20 @@ describe("uploading a Plan", () => {
     await expect(upload([jpeg("p1")], nina)).rejects.toThrow(NotAllowedError);
   });
 
+  it("lets the Owner open the original file, and tells every Member there is a Plan", async () => {
+    expect(await hasPlan(db, nina)).toBe(false);
+    await upload();
+
+    expect(await planOriginal(db, pope, 1, store)).toEqual({ name: "tlocrt.pdf", mediaType: "application/pdf", data: pdf });
+    await expect(planOriginal(db, nina, 1, store)).rejects.toThrow(NotAllowedError);
+    expect(await hasPlan(db, nina)).toBe(true);
+  });
+
   it("refuses what isn't a picture, and too many pages", async () => {
     await expect(upload([Buffer.from("not a picture")])).rejects.toThrow(ValidationError);
+    // a file that says it's a PDF but isn't
+    await expect(uploadPlan(db, pope, { files: [{ name: "x.pdf", mediaType: "application/pdf", data: Buffer.from("MZ...") }], pages: [jpeg("p")] }, now, store)).rejects.toThrow(ValidationError);
+    expect(await store.list()).toEqual([]);
     await expect(upload([])).rejects.toThrow(ValidationError);
     await expect(upload(Array.from({ length: 7 }, (_, i) => jpeg(`p${i}`)))).rejects.toThrow(ValidationError);
   });
@@ -98,6 +111,7 @@ describe("reading a Plan", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0].lang).toBe("en");
+    expect(calls[0].schema).toBe(READER_SCHEMA);
     expect(calls[0].pages.map((p) => p.data.toString())).toEqual([jpeg("ground").toString()]);
     expect(draft.floors).toHaveLength(1);
     const [bath, other] = draft.floors[0].rooms;
@@ -129,18 +143,34 @@ describe("reading a Plan", () => {
 
   it("gives a failed reading back", async () => {
     await upload();
-    for (let i = 0; i < 5; i++) await expect(read(fakeReader(new Error("overloaded")).reader)).rejects.toThrow();
+    for (let i = 0; i < 6; i++) await expect(read(fakeReader(new Error("overloaded")).reader)).rejects.toThrow();
+
+    expect(await getPlan(db, pope, now)).toMatchObject({ status: "failed", readsLeft: 5 });
+    await expect(read(fakeReader().reader)).resolves.toBeDefined();
+  });
+
+  it("counts a reading that found no rooms, since Claude did read it", async () => {
+    await upload();
     await expect(read(fakeReader({ floors: [{ isFloorPlan: false, name: null, rooms: [], openings: [] }] }).reader)).rejects.toThrow(/No rooms/);
 
+    expect(await getPlan(db, pope, now)).toMatchObject({ status: "failed", readsLeft: 4 });
+  });
+
+  it("keeps the earlier draft when reading again fails", async () => {
+    await upload();
+    await read(fakeReader().reader);
+
+    await expect(read(fakeReader(new Error("overloaded")).reader)).rejects.toThrow();
+
     const plan = await getPlan(db, pope, now);
-    expect(plan).toMatchObject({ status: "failed", readsLeft: 5 });
-    await expect(read(fakeReader().reader)).resolves.toBeDefined();
+    expect(plan).toMatchObject({ status: "read", readsLeft: 4 });
+    expect(plan?.draft?.floors[0].rooms).toHaveLength(2);
   });
 
   it("needs an uploaded Plan, and is for the Owner only", async () => {
     await expect(read(fakeReader().reader)).rejects.toThrow();
     await upload();
-    await expect(readPlan(db, nina, { reader: fakeReader().reader, store, unlimitedEmails: [] }, "en", now)).rejects.toThrow(NotAllowedError);
+    await expect(readPlan(db, nina, "en", now, { reader: fakeReader().reader, store, unlimitedEmails: [] })).rejects.toThrow(NotAllowedError);
   });
 });
 

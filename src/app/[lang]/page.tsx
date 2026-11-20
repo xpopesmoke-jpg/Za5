@@ -14,6 +14,7 @@ import { getToday, hasAnyChore } from "@/server/chores";
 import { getDoneForYou } from "@/server/claims";
 import { getFairness } from "@/server/fairness";
 import { getHomeMap } from "@/server/home-map";
+import { hasPlan } from "@/server/plans";
 import { getZa5Count } from "@/server/za5";
 import { getHome } from "@/server/home";
 import { getCurrentHome } from "@/server/session";
@@ -24,7 +25,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
   const { me, household } = await getCurrentHome();
   const now = new Date();
   const db = getDb();
-  const [home, today, doneForYou, balance, za5Count, hasChores, map] = await Promise.all([
+  const [home, today, doneForYou, balance, za5Count, hasChores, map, planKept] = await Promise.all([
     getHome(db, me.id),
     getToday(db, me.id, now),
     getDoneForYou(db, me.id),
@@ -32,6 +33,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
     getZa5Count(db, me.id, now),
     hasAnyChore(db, me.id),
     getHomeMap(db, me.id, now),
+    hasPlan(db, me.id),
   ]);
   const t = DICT[lang];
   const hasRooms = home.floors.some((f) => f.rooms.length > 0);
@@ -87,6 +89,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       )}
       {!household.awaySince && <GoAway lang={lang} />}
       {household.role === "owner" && <InvitePanel homeName={household.name} />}
+      {planKept && household.role !== "owner" && <p className="text-[13px] text-ink-2">{t.plan.memberNotice}</p>}
       <form action={signOut}>
         <button type="submit" className="text-[14px] font-medium text-ink-2 underline">
           {t.common.signOut}

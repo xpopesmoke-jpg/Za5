@@ -25,8 +25,11 @@ export function PlanReadButton({ label, disabled, quiet = false }: { label: stri
         className={`flex items-center justify-center gap-3 rounded-full border-2 border-edge px-5 text-[16px] font-extrabold disabled:opacity-60 ${quiet ? "min-h-12 bg-surface text-ink" : "min-h-14 bg-za5 text-za5-ink"}`}
       >
         {pending && <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" />}
-        <span aria-live="polite">{pending ? t.readingSteps[step] : label}</span>
+        <span>{pending ? t.readingSteps[step] : label}</span>
       </button>
+      <p role="status" className="sr-only">
+        {pending ? t.readingSteps[step] : ""}
+      </p>
       {pending && <p className="text-center text-[14px] text-ink-2">{t.readingNote}</p>}
     </div>
   );

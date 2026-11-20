@@ -15,8 +15,8 @@ const chip = (on: boolean) =>
   `flex min-h-11 shrink-0 items-center rounded-full border-2 px-3.5 text-[14px] font-extrabold ${on ? "border-edge bg-ink text-surface" : "border-line bg-surface text-ink"}`;
 
 /**
- * What Claude read, beside the Plan it came from: one page at a time, the original above and Za5's 3D drawing
- * below, with the Rooms it found. Tap a Room to see it on the drawing.
+ * The Draft home beside the Plan it came from: one page at a time, the original above and its Home map below,
+ * with the Rooms Claude found. Tap a Room to see it on the map.
  */
 export function PlanDraft({ draft, version }: { draft: DraftHome; version: string }) {
   const t = useT();
@@ -70,7 +70,9 @@ export function PlanDraft({ draft, version }: { draft: DraftHome; version: strin
           <p className="rounded-card border-2 border-line bg-raised p-4 text-[15px]">{t.plan.notAPlan}</p>
         ) : (
           <div className="overflow-hidden rounded-card border-2 border-edge bg-surface">
-            {!no3d && (
+            {no3d ? (
+              <p className="p-4 text-[15px]">{t.plan.no3d}</p>
+            ) : (
               <HomeMap3D
                 key={floor.id}
                 rooms={floor.rooms}

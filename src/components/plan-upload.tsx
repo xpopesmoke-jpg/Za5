@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useT } from "@/i18n/client";
+import { PLAN_PAGES_MAX } from "@/domain/plan";
 import { FormMessage } from "./ui";
 
 const LONG_SIDE = 2200; // px: sharp enough to read the dimensions, small enough to send
-const MAX_PAGES = 6;
 
 /** A canvas as a JPEG file. */
 const jpeg = (canvas: HTMLCanvasElement) =>
@@ -29,20 +29,24 @@ async function pdfPages(file: File, onPage: (done: number, all: number) => void)
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
-  const doc = await task.promise;
-  const count = Math.min(doc.numPages, MAX_PAGES + 1);
-  const pages: Blob[] = [];
-  for (let i = 1; i <= count; i++) {
-    const page = await doc.getPage(i);
-    const base = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: LONG_SIDE / Math.max(base.width, base.height) });
-    const { canvas } = canvasOf(viewport.width, viewport.height);
-    await page.render({ canvas, viewport, background: "#ffffff" }).promise;
-    pages.push(await jpeg(canvas));
-    onPage(i, count);
+  try {
+    const doc = await task.promise;
+    // one page over the limit is enough for the server to say "up to 6 pages"
+    const count = Math.min(doc.numPages, PLAN_PAGES_MAX + 1);
+    const pages: Blob[] = [];
+    for (let i = 1; i <= count; i++) {
+      const page = await doc.getPage(i);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: LONG_SIDE / Math.max(base.width, base.height) });
+      const { canvas } = canvasOf(viewport.width, viewport.height);
+      await page.render({ canvas, viewport, background: "#ffffff" }).promise;
+      pages.push(await jpeg(canvas));
+      onPage(i, count);
+    }
+    return pages;
+  } finally {
+    await task.destroy();
   }
-  await task.destroy();
-  return pages;
 }
 
 async function imagePage(file: File) {
@@ -65,7 +69,7 @@ export function PlanUpload({ again = false }: { again?: boolean }) {
     if (!files.length) return;
     try {
       const pages: Blob[] = [];
-      for (const f of files) {
+      for (const f of files.slice(0, PLAN_PAGES_MAX + 1)) {
         if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) pages.push(...(await pdfPages(f, (d, a) => setBusy(t.preparing(d, a)))));
         else {
           setBusy(t.preparing(pages.length + 1, files.length));
@@ -104,8 +108,11 @@ export function PlanUpload({ again = false }: { again?: boolean }) {
             void send(files);
           }}
         />
-        <span aria-live="polite">{busy ?? (again ? t.newPlan : t.choose)}</span>
+        <span>{busy ?? (again ? t.newPlan : t.choose)}</span>
       </label>
+      <p role="status" className="sr-only">
+        {busy ?? ""}
+      </p>
       {!again && <p className="text-[14px] text-ink-2">{t.chooseHint}</p>}
       <FormMessage error={error} />
     </div>

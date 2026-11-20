@@ -9,7 +9,7 @@ import { NotAllowedError, NotFoundError, ValidationError } from "@/server/errors
 import { hasAnyChore } from "@/server/chores";
 import { unlimitedEmails } from "@/server/plan-config";
 import { planStore } from "@/server/plan-store";
-import { applyPlanDraft, deletePlan, readPlan } from "@/server/plans";
+import { applyPlanDraft, deletePlan, getPlan, readPlan } from "@/server/plans";
 import { getCurrentUser } from "@/server/session";
 import { toActionError, type ActionResult } from "../action-result";
 
@@ -18,13 +18,14 @@ export async function readPlanAction(): Promise<ActionResult> {
   const me = await getCurrentUser();
   const lang = await requestLang();
   try {
-    await readPlan(getDb(), me.id, { reader: claudePlanReader(), store: planStore(), unlimitedEmails: unlimitedEmails() }, lang, new Date());
+    await readPlan(getDb(), me.id, lang, new Date(), { reader: claudePlanReader(), store: planStore(), unlimitedEmails: unlimitedEmails() });
   } catch (err) {
     if (err instanceof ValidationError || err instanceof NotFoundError || err instanceof NotAllowedError) return toActionError(err, lang);
-    // the page now says the reading didn't work and didn't count
     console.error("Plan reading failed:", err);
     revalidatePath("/plan");
-    return { ok: false };
+    // With no Draft home yet the page itself says the reading failed; with one, it stays on screen and this says so.
+    const plan = await getPlan(getDb(), me.id, new Date());
+    return plan?.draft ? toActionError(new ValidationError("Reading the plan again didn't work. It didn't count, and your home map is still here."), lang) : { ok: false };
   }
   revalidatePath("/plan");
   return { ok: true };

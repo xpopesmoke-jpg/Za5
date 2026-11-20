@@ -31,7 +31,7 @@ The floor-plan file a Household uploads (PDF or image), which the AI reads to bu
 _Avoid_: Schematic, blueprint, drawing
 
 **Plan reading**:
-Claude reading a Plan into a Draft home. Each Household gets 5 a day, counted in its own time zone; the app owner has no limit, and a reading that fails is given back.
+Claude reading a Plan into a Draft home. Each Household gets 5 a day, counted in its own time zone; the app owner has no limit. A reading that fails (Claude didn't answer) is given back; one that finds no rooms still counts.
 
 **Draft home**:
 What a Plan reading found (Floors, Rooms, doors, windows and Fixtures), shown beside the Plan. It becomes the home only when the Owner chooses "Looks right" or "Fix it"; a Room whose name matches an existing Room keeps its Chores.

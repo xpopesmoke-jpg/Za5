@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { READER_SCHEMA } from "@/domain/plan";
 import type { PlanReader } from "./plans";
 
 /*
@@ -21,7 +20,7 @@ For each floor, find every room and outdoor space (terrace, balcony, loggia):
 If an image is not a floor plan of a home, set isFloorPlan to false and leave its lists empty. Don't invent rooms you can't see.`;
 
 export function claudePlanReader(client = new Anthropic()): PlanReader {
-  return async ({ pages, lang }) => {
+  return async ({ pages, lang, schema }) => {
     const message = await client.messages.create({
       model: MODEL,
       max_tokens: 16000,
@@ -37,9 +36,10 @@ export function claudePlanReader(client = new Anthropic()): PlanReader {
           ],
         },
       ],
-      output_config: { format: { type: "json_schema", schema: READER_SCHEMA as unknown as Record<string, unknown> } },
+      output_config: { format: { type: "json_schema", schema: schema as unknown as Record<string, unknown> } },
     });
     if (message.stop_reason === "max_tokens") throw new Error("The plan reading was cut off.");
+    if (message.stop_reason === "refusal") throw new Error("Claude declined to read this plan.");
     const text = message.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
     return JSON.parse(text);
   };

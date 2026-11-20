@@ -16,7 +16,7 @@ import { applyPlanAction, deletePlanAction, readPlanAction } from "./actions";
 
 const secondary = "flex min-h-12 w-full items-center justify-center rounded-full border-2 border-edge bg-surface px-5 text-[16px] font-extrabold text-ink";
 
-/** The Owner's Plan: upload it, have Claude read it, compare the drawing with the Plan, then save or fix it. */
+/** The Owner's Plan: upload it, have Claude read it, compare the Draft home with the Plan, then save or fix it. */
 export default async function PlanPage({ params }: PageProps<"/[lang]/plan">) {
   const lang = langOf((await params).lang);
   const { me, household } = await getCurrentHome();
@@ -26,6 +26,16 @@ export default async function PlanPage({ params }: PageProps<"/[lang]/plan">) {
   const t = DICT[lang].plan;
   const hasRooms = home.floors.some((f) => f.rooms.length > 0);
   const canRead = plan?.readsLeft !== 0;
+  const files = plan ? plan.fileName.split(", ") : [];
+  const originals = (
+    <div className="flex flex-col gap-1">
+      {files.map((name, i) => (
+        <a key={i} href={`/api/plan/original/${i + 1}`} target="_blank" rel="noopener" className="self-start text-[15px] font-bold text-ink-2 underline">
+          {t.openOriginal(i + 1, files.length)}
+        </a>
+      ))}
+    </div>
+  );
   const readsNote = plan && (plan.readsLeft === null ? null : plan.readsLeft === 0 ? t.noReadsLeft : t.readsLeft(plan.readsLeft));
 
   return (
@@ -105,6 +115,7 @@ export default async function PlanPage({ params }: PageProps<"/[lang]/plan">) {
 
       {plan && (
         <section className="mt-2 flex flex-col gap-3 border-t-2 border-line pt-5">
+          {originals}
           <PlanUpload again />
           <ActionForm action={deletePlanAction}>
             <ConfirmButton label={t.deletePlan} confirmLabel={t.deleteConfirm} className="min-h-11 text-[15px] font-bold text-danger underline" />

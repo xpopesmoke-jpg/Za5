@@ -4,13 +4,13 @@ import { user } from "./auth-schema";
 
 export * from "./auth-schema";
 
-/** The people who share one home and its Chores. */
 /** A door or window on a Floor: its middle point and width in centimetres. */
-export type Opening = { kind: "door" | "window"; at: [number, number]; width: number };
+export type Opening = import("@/domain/plan").DraftOpening;
 
 /** What the Plan reader found, kept until the Owner says "Looks right" (see src/domain/plan.ts). */
 export type DraftHomeJson = import("@/domain/plan").DraftHome;
 
+/** The people who share one home and its Chores. */
 export const households = pgTable("households", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),

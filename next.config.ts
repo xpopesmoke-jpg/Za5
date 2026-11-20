@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   // The local development database ships its own engine files; load it as-is instead of bundling it.
   serverExternalPackages: ["@electric-sql/pglite"],
   experimental: {
-    // Plan uploads (a PDF plus its pages as pictures) pass through the language proxy whole.
+    // Plan uploads (a PDF plus its pages as pictures) must reach /api/plan whole through src/proxy.ts.
     proxyClientMaxBodySize: 40 * 1024 * 1024,
   },
   turbopack: {

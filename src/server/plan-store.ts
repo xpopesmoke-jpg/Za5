@@ -15,7 +15,7 @@ export type PlanStore = {
 };
 
 const safe = (key: string) => {
-  if (!/^[0-9a-f-]{36}(\/[a-z0-9.-]+)?$/.test(key)) throw new Error(`Bad plan file key: ${key}`);
+  if (!/^[0-9a-f-]{36}(\/[a-z0-9-]+\.[a-z0-9]+)?$/.test(key)) throw new Error(`Bad plan file key: ${key}`);
   return key;
 };
 
@@ -53,10 +53,10 @@ export function memoryPlanStore(): PlanStore {
       files.set(safe(key), data);
     },
     async get(key) {
-      return files.get(key) ?? null;
+      return files.get(safe(key)) ?? null;
     },
     async removeAll(prefix) {
-      for (const k of [...files.keys()]) if (k.startsWith(`${prefix}/`)) files.delete(k);
+      for (const k of [...files.keys()]) if (k.startsWith(`${safe(prefix)}/`)) files.delete(k);
     },
     async list() {
       return [...files.keys()];

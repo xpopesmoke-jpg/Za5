@@ -9,6 +9,9 @@ import { clockwise, signedArea2, type Outline } from "./layout";
 
 export const OUTLINE_MAX_CM = 10_000;
 export const PLAN_PAGES_MAX = 6;
+/** Size limits for one upload; together they stay under the proxy's 40 MB body limit (next.config.ts). */
+export const PAGE_BYTES_MAX = 3 * 1024 * 1024;
+export const FILE_BYTES_MAX = 20 * 1024 * 1024;
 export const DRAFT_ROOMS_MAX = 30;
 export const DRAFT_FIXTURES_MAX = 12;
 export const DRAFT_OPENINGS_MAX = 60;
@@ -41,7 +44,7 @@ export const READER_SCHEMA = {
         type: "object",
         properties: {
           isFloorPlan: { type: "boolean", description: "false when the image is not a floor plan of a home" },
-          name: { type: ["string", "null"], description: "The floor's name if the plan shows one, e.g. 'Ground floor'" },
+          name: { anyOf: [{ type: "string" }, { type: "null" }], description: "The floor's name if the plan shows one, e.g. 'Ground floor'" },
           rooms: {
             type: "array",
             items: {
